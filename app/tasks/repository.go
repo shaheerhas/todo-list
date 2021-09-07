@@ -7,3 +7,7 @@ func createTask() {
 func updateTask() {
 
 }
+
+func deleteTask() {
+
+}
