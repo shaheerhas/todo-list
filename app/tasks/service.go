@@ -26,7 +26,9 @@ func (svc TaskApp) postTask(c *gin.Context) {
 	var task Task
 	if err := c.BindJSON(&task); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, "json format not correct")
+		return
 	}
+	c.IndentedJSON(http.StatusCreated, " record created successfully")
 }
 
 func (svc TaskApp) getTaskById(c *gin.Context) {

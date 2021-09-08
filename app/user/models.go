@@ -7,9 +7,9 @@ import (
 
 type User struct {
 	gorm.Model
-	Username string
-	Email    string
-	Password string
+	Username string `gorm:"not null"`
+	Email    string `gorm:"not null"`
+	Password string `gorm:"not null"`
 	Tasks    []tasks.Task
 }
 
