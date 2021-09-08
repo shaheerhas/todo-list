@@ -7,13 +7,15 @@ import (
 )
 
 type Task struct {
-	id      int
-	time    time.Time
-	title   string
-	details string
-	files   []string
+	gorm.Model
+	Title          string `gorm:"unique; notnull"`
+	Details        string
+	CompletionTime time.Time
+	DueTime        time.Time
+	Status         bool
+	Files          []string
+	UserId         int `gorm:"notnull"`
 }
-
 type TaskApp struct {
 	Db *gorm.DB
 }

@@ -2,7 +2,7 @@ package tasks
 
 import "github.com/gin-gonic/gin"
 
-func route(svc TaskApp) {
+func Route(svc TaskApp) {
 	router := gin.Default()
 	router.GET("/tasks", svc.getTasksList)
 	router.GET("/tasks/id", svc.getTaskById)
