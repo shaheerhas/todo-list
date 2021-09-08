@@ -6,13 +6,17 @@ import (
 )
 
 type User struct {
-	Id       int
-	Username string       `gorm:"unique; notnull"`
-	Email    string       `gorm:"unique; notnull"`
-	Password string       `gorm:"notnull"`
-	Tasks    []tasks.Task `gorm:"foreignKey:userId"`
+	gorm.Model
+	Username string
+	Email    string
+	Password string
+	Tasks    []tasks.Task
 }
 
 type UserApp struct {
 	Db *gorm.DB
+}
+
+func (u *UserApp) InitUserDB() {
+	u.Db.AutoMigrate(&User{})
 }

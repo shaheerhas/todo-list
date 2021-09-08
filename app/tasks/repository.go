@@ -1,5 +1,10 @@
 package tasks
 
+type NoTasks struct{}
+
+func (m *NoTasks) Error() string {
+	return "no tasks in db"
+}
 func createTask(svc TaskApp, task Task) error {
 	result := svc.Db.Create(&task)
 	if result.Error != nil {
@@ -39,6 +44,9 @@ func allTasks(svc TaskApp) ([]Task, error) {
 	var tasks []Task
 	if err := svc.Db.Find(&tasks).Error; err != nil {
 		return nil, err
+	}
+	if len(tasks) == 0 {
+		return nil, &NoTasks{}
 	}
 
 	return tasks, nil

@@ -10,8 +10,10 @@ import (
 func (svc TaskApp) getTasksList(c *gin.Context) {
 	tasks, err := allTasks(svc)
 	if err != nil {
+
+		c.IndentedJSON(http.StatusNoContent, err)
 		log.Println(err)
-		c.IndentedJSON(http.StatusNoContent, "couldn't find any tasks")
+		return
 	}
 	c.IndentedJSON(http.StatusOK, tasks)
 }
