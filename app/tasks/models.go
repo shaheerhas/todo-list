@@ -1,11 +1,19 @@
 package tasks
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type Task struct {
+	id      int
 	time    time.Time
 	title   string
-	id      int
 	details string
 	files   []string
+}
+
+type TaskApp struct {
+	Db *gorm.DB
 }
