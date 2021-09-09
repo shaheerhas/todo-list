@@ -8,10 +8,10 @@ import (
 )
 
 func (svc TaskApp) getTasksList(c *gin.Context) {
+	// should add functionality which gets id from context
 	tasks, err := allTasks(svc)
 	if err != nil {
-
-		c.IndentedJSON(http.StatusNoContent, err)
+		c.IndentedJSON(http.StatusBadRequest, err)
 		log.Println(err)
 		return
 	}
@@ -26,6 +26,10 @@ func (svc TaskApp) postTask(c *gin.Context) {
 	var task Task
 	if err := c.BindJSON(&task); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, "json format not correct")
+		return
+	}
+	if err := createTask(svc, task); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, " couldn't create record in db")
 		return
 	}
 	c.IndentedJSON(http.StatusCreated, " record created successfully")

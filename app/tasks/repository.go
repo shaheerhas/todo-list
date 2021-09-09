@@ -22,6 +22,9 @@ func getTaskById(svc TaskApp, id int) (Task, error) {
 	if err := svc.Db.Where("id = ?", id).First(&task).Error; err != nil {
 		return task, err
 	}
+	if task.ID == 0 {
+		return task, &NoTasks{}
+	}
 	return task, nil
 
 }
@@ -38,6 +41,7 @@ func deleteTask(svc TaskApp, id int) error {
 	}
 
 	return nil
+
 }
 
 func allTasks(svc TaskApp) ([]Task, error) {
@@ -50,4 +54,5 @@ func allTasks(svc TaskApp) ([]Task, error) {
 	}
 
 	return tasks, nil
+
 }

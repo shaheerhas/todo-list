@@ -10,12 +10,13 @@ import (
 
 func (svc UserApp) getUsers(c *gin.Context) {
 	var users []User
-	err := allUsers(users, svc)
+	err := allUsers(svc, &users)
 	if err != nil {
 		log.Println(err)
-		c.IndentedJSON(http.StatusBadRequest, "couldn't get users")
+		c.IndentedJSON(http.StatusBadRequest, err)
 		return
 	}
+	fmt.Println(users)
 	c.IndentedJSON(http.StatusOK, users)
 
 }
@@ -27,7 +28,7 @@ func (svc UserApp) postUser(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, "some issue with your json formatting")
 		return
 	}
-	err := createUser(user, svc)
+	user, err := createUser(svc, user)
 	if err != nil {
 		log.Println(err)
 		c.IndentedJSON(http.StatusBadRequest, "couldn't create record in db")
