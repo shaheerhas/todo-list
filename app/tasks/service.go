@@ -15,7 +15,8 @@ const ATTACHMENTFOLDER = "downloads"
 
 func (svc TaskApp) getTasksList(c *gin.Context) {
 	// should add functionality which gets id from context
-	tasks, err := allTasks(svc)
+	userId := 1
+	tasks, err := allTasks(svc, userId)
 	if err != nil {
 		c.IndentedJSON(http.StatusBadRequest, err)
 		log.Println(err)
@@ -83,7 +84,9 @@ func (svc TaskApp) attachFile(c *gin.Context) {
 	fileName := fmt.Sprintf("%s/%v_%s", ATTACHMENTFOLDER, userId, file.Filename)
 	err = c.SaveUploadedFile(file, fileName)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		c.IndentedJSON(http.StatusInternalServerError, "error saving file")
+		return
 	}
 	//save file path to db
 	err = addFilePath(svc, fileName, taskId)

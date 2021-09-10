@@ -21,6 +21,7 @@ func start() {
 	if err != nil {
 		panic("couldn't connect to db")
 	}
+
 	router := gin.Default()
 
 	taskApp := tasks.TaskApp{Db: db}

@@ -54,9 +54,9 @@ func deleteTask(svc TaskApp, id int) error {
 
 }
 
-func allTasks(svc TaskApp) ([]Task, error) {
+func allTasks(svc TaskApp, id int) ([]Task, error) {
 	var tasks []Task
-	if err := svc.Db.Find(&tasks).Error; err != nil {
+	if err := svc.Db.Where("user_id = ?", id).Find(&tasks).Error; err != nil {
 		return nil, err
 	}
 	if len(tasks) == 0 {
