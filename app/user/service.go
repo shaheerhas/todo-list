@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shaheerhas/todo-list/app/utils"
 )
 
 func (svc UserApp) getUsers(c *gin.Context) {
@@ -21,6 +22,10 @@ func (svc UserApp) getUsers(c *gin.Context) {
 
 }
 
+func (svc UserApp) patchUser(c *gin.Context) {
+
+}
+
 func (svc UserApp) postUser(c *gin.Context) {
 	var user User
 	if err := c.BindJSON(&user); err != nil {
@@ -28,10 +33,16 @@ func (svc UserApp) postUser(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, "some issue with your json formatting")
 		return
 	}
-	user, err := createUser(svc, user)
+	hashedPassword, err := utils.HashPassword(user.Password)
+	if err != nil {
+		log.Println("couldn't hash password")
+	} else {
+		user.Password = hashedPassword
+	}
+	user, err = createUser(svc, user)
 	if err != nil {
 		log.Println(err)
-		c.IndentedJSON(http.StatusBadRequest, "couldn't create record in db")
+		c.IndentedJSON(http.StatusInternalServerError, "couldn't create record in db")
 		return
 	}
 	fmt.Println(user)

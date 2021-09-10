@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/gin-gonic/gin"
 	"github.com/shaheerhas/todo-list/app/tasks"
 	"github.com/shaheerhas/todo-list/app/user"
@@ -23,7 +21,6 @@ func start() {
 	if err != nil {
 		panic("couldn't connect to db")
 	}
-	fmt.Print(db)
 	router := gin.Default()
 
 	taskApp := tasks.TaskApp{Db: db}

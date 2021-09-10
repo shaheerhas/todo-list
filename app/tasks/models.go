@@ -7,14 +7,14 @@ import (
 )
 
 type Task struct {
-	gorm.Model
+	ID             uint   `gorm:"autoIncrement;primaryKey"`
 	Title          string `gorm:"not null"`
 	Details        string
 	CompletionTime time.Time
 	DueTime        time.Time
-	Status         bool     `gorm:"not null"`
-	Files          []string `gorm:"type:text[]"`
-	UserID         uint     `gorm:"not null"`
+	Status         bool `gorm:"not null"`
+	File           string
+	UserID         uint `gorm:"not null"`
 }
 type TaskApp struct {
 	Db *gorm.DB

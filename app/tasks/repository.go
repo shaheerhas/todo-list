@@ -5,6 +5,7 @@ type NoTasks struct{}
 func (m *NoTasks) Error() string {
 	return "no tasks in db"
 }
+
 func createTask(svc TaskApp, task Task) error {
 	result := svc.Db.Create(&task)
 	if result.Error != nil {
@@ -13,7 +14,16 @@ func createTask(svc TaskApp, task Task) error {
 	return nil
 }
 
-func updateTask() {
+func updateTask(svc TaskApp, updatedTask Task) error {
+	var task Task
+	if err := svc.Db.Where("id = ?", updatedTask.ID).First(&task).Error; err != nil {
+		return err
+	}
+	err := svc.Db.Model(&task).Updates(updatedTask).Error
+	if err != nil {
+		return err
+	}
+	return nil
 
 }
 
@@ -55,4 +65,25 @@ func allTasks(svc TaskApp) ([]Task, error) {
 
 	return tasks, nil
 
+}
+
+func addFilePath(svc TaskApp, fileName string, taskId int) error {
+	err := svc.Db.Model(&Task{}).Where("id = ?", taskId).Update("file", fileName).Error
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func getFilePath(svc TaskApp, taskId int) (string, error) {
+	var task Task
+	if err := svc.Db.Where("id = ?", taskId).First(&task).Error; err != nil {
+		return "", err
+	}
+	return task.File, nil
+}
+
+func deleteFilePath(svc TaskApp, taskId int) error {
+	//assign zero value to file path in db
+	return addFilePath(svc, "", taskId)
 }
