@@ -26,18 +26,19 @@ func (svc TaskApp) getTasksList(c *gin.Context) {
 }
 
 func (svc TaskApp) patchTask(c *gin.Context) {
-	var task Task
-	if err := c.BindJSON(&task); err != nil {
+	//var task Task
+	var reqBody map[string]interface{}
+	if err := c.BindJSON(&reqBody); err != nil {
 		log.Println(err)
 		c.IndentedJSON(http.StatusBadRequest, "json format not correct")
 		return
 	}
-	if err := updateTask(svc, task); err != nil {
+	if err := updateTask(svc, reqBody); err != nil {
 		log.Println(err)
 		c.IndentedJSON(http.StatusInternalServerError, err)
 		return
 	}
-
+	c.IndentedJSON(http.StatusOK, "task successfully updated")
 }
 
 func (svc TaskApp) postTask(c *gin.Context) {
@@ -48,6 +49,7 @@ func (svc TaskApp) postTask(c *gin.Context) {
 		return
 	}
 	if err := createTask(svc, task); err != nil {
+		log.Println(err)
 		c.IndentedJSON(http.StatusBadRequest, "couldn't create record in db")
 		return
 	}
@@ -130,12 +132,7 @@ func (svc TaskApp) downloadFile(c *gin.Context) {
 }
 
 func (svc TaskApp) deleteTask(c *gin.Context) {
-	// var task Task
-	// if err := c.BindJSON(&task); err != nil {
-	// 	log.Println(err)
-	// 	c.IndentedJSON(http.StatusBadRequest, "something wrong with the json formatting")
-	// 	return
-	// }
+
 	taskId, err := strconv.Atoi(c.Param("taskid"))
 	if err != nil {
 		log.Println(err)
@@ -144,7 +141,7 @@ func (svc TaskApp) deleteTask(c *gin.Context) {
 	}
 	if err := deleteTask(svc, taskId); err != nil {
 		log.Println(err)
-		c.IndentedJSON(http.StatusNotFound, err)
+		c.IndentedJSON(http.StatusNotFound, "task with this id not found in db")
 		return
 	}
 	c.IndentedJSON(http.StatusOK, "record deleted successfully")

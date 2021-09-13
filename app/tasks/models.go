@@ -12,7 +12,7 @@ type Task struct {
 	Details        string
 	CompletionTime time.Time
 	DueTime        time.Time
-	Status         bool `gorm:"not null"`
+	Status         bool `gorm:"not null; default:false"`
 	File           string
 	UserID         uint `gorm:"not null"`
 }

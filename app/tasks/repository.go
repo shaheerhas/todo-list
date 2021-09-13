@@ -1,5 +1,9 @@
 package tasks
 
+import (
+	"gorm.io/gorm"
+)
+
 type NoTasks struct{}
 
 func (m *NoTasks) Error() string {
@@ -7,6 +11,13 @@ func (m *NoTasks) Error() string {
 }
 
 func createTask(svc TaskApp, task Task) error {
+
+	var Found bool
+	svc.Db.Raw("SELECT EXISTS(SELECT 1 FROM users WHERE id = ?) AS found",
+		task.UserID).Scan(&Found)
+	if !Found {
+		return gorm.ErrRecordNotFound
+	}
 	result := svc.Db.Create(&task)
 	if result.Error != nil {
 		return result.Error
@@ -14,11 +25,12 @@ func createTask(svc TaskApp, task Task) error {
 	return nil
 }
 
-func updateTask(svc TaskApp, updatedTask Task) error {
+func updateTask(svc TaskApp, updatedTask map[string]interface{}) error {
 	var task Task
-	if err := svc.Db.Where("id = ?", updatedTask.ID).First(&task).Error; err != nil {
+	if err := svc.Db.Where("id = ?", updatedTask["id"]).First(&task).Error; err != nil {
 		return err
 	}
+
 	err := svc.Db.Model(&task).Updates(updatedTask).Error
 	if err != nil {
 		return err
@@ -33,6 +45,7 @@ func getTaskById(svc TaskApp, id int) (Task, error) {
 		return task, err
 	}
 	if task.ID == 0 {
+
 		return task, &NoTasks{}
 	}
 	return task, nil
