@@ -45,7 +45,7 @@ func (svc TaskApp) postTask(c *gin.Context) {
 	var task Task
 	if err := c.BindJSON(&task); err != nil {
 		log.Println(err)
-		c.IndentedJSON(http.StatusBadRequest, "json format not correct")
+		c.IndentedJSON(http.StatusUnprocessableEntity, "json format not correct")
 		return
 	}
 	if err := createTask(svc, task); err != nil {

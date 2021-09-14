@@ -1,9 +1,5 @@
 package tasks
 
-import (
-	"gorm.io/gorm"
-)
-
 type NoTasks struct{}
 
 func (m *NoTasks) Error() string {
@@ -12,12 +8,6 @@ func (m *NoTasks) Error() string {
 
 func createTask(svc TaskApp, task Task) error {
 
-	var Found bool
-	svc.Db.Raw("SELECT EXISTS(SELECT 1 FROM users WHERE id = ?) AS found",
-		task.UserID).Scan(&Found)
-	if !Found {
-		return gorm.ErrRecordNotFound
-	}
 	result := svc.Db.Create(&task)
 	if result.Error != nil {
 		return result.Error
@@ -62,7 +52,6 @@ func deleteTask(svc TaskApp, id int) error {
 	if result.Error != nil {
 		return result.Error
 	}
-
 	return nil
 
 }
@@ -75,7 +64,6 @@ func allTasks(svc TaskApp, id int) ([]Task, error) {
 	if len(tasks) == 0 {
 		return nil, &NoTasks{}
 	}
-
 	return tasks, nil
 
 }
