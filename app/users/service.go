@@ -36,7 +36,6 @@ func (svc UserModelApp) login(c *gin.Context) {
 		c.IndentedJSON(http.StatusNotFound, "user with this email not found")
 		return
 	}
-	fmt.Println(loginUser, user)
 	verified := utils.CheckPasswordHash(user.Password, loginUser.Password)
 	if !verified {
 		c.IndentedJSON(http.StatusUnauthorized, "password not correct")
@@ -56,6 +55,9 @@ func (svc UserModelApp) patchUser(c *gin.Context) {
 
 }
 
+func (svc UserModelApp) signup() {
+
+}
 func (svc UserModelApp) postUser(c *gin.Context) {
 	var user UserModel
 	if err := c.BindJSON(&user); err != nil {

@@ -9,19 +9,28 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shaheerhas/todo-list/app/utils"
 )
 
 const ATTACHMENTFOLDER = "downloads"
 
 func (svc TaskApp) getTasksList(c *gin.Context) {
 	// should add functionality which gets id from context
-	userId := 1
+	userId, exists := c.Get("userId")
+	if !exists {
+		log.Println("couldn't get user-id from context")
+		// CHANGEE
+		log.Println(userId)
+		userId = 1
+	}
+	log.Println(userId)
 	tasks, err := allTasks(svc, userId)
 	if err != nil {
 		c.IndentedJSON(http.StatusBadRequest, err)
 		log.Println(err)
 		return
 	}
+
 	c.IndentedJSON(http.StatusOK, tasks)
 }
 
@@ -48,6 +57,18 @@ func (svc TaskApp) postTask(c *gin.Context) {
 		c.IndentedJSON(http.StatusUnprocessableEntity, "json format not correct")
 		return
 	}
+
+	uId, _ := c.Get("userId")
+	fmt.Println(uId)
+	fmt.Printf("%T", uId)
+	var err error
+	task.UserID, err = utils.ConvertInterfaceToUint(uId)
+
+	if err != nil {
+		log.Println(err)
+		// REMOVE THIS
+	}
+
 	if err := createTask(svc, task); err != nil {
 		log.Println(err)
 		c.IndentedJSON(http.StatusBadRequest, "couldn't create record in db")
@@ -82,7 +103,11 @@ func (svc TaskApp) attachFile(c *gin.Context) {
 		return
 	}
 	// add User's ID here from context
-	userId := 1
+	userId, exists := c.Get("userId")
+	if !exists {
+		log.Println("userId doesn't exist in the context")
+		userId = 1
+	}
 	fileName := fmt.Sprintf("%s/%v_%s", ATTACHMENTFOLDER, userId, file.Filename)
 	err = c.SaveUploadedFile(file, fileName)
 	if err != nil {
