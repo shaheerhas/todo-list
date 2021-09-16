@@ -37,9 +37,11 @@ func ValidateJWTToken(tokenString string) (jwt.MapClaims, error) {
 		return nil, err
 	}
 	claims, ok := token.Claims.(jwt.MapClaims)
-	expiryTime, _ := claims["expiry"].(time.Time)
-	fmt.Println(time.Now(), expiryTime, expiryTime.Before(time.Now()))
-	if expiryTime.Before(time.Now()) {
+
+	expiryTime_, exists := claims["expiry"].(float64)
+	expiryTime := time.Unix(int64(expiryTime_), 0)
+
+	if exists && expiryTime.Before(time.Now()) {
 		return nil, fmt.Errorf("token expired")
 	}
 	if ok && token.Valid {
@@ -50,24 +52,22 @@ func ValidateJWTToken(tokenString string) (jwt.MapClaims, error) {
 
 }
 
-//
-func AuthMiddleware(obj func(*gin.Context)) gin.HandlerFunc {
+func AuthMiddleware(c *gin.Context) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		const BEARER_SCHEMA = "Bearer "
 		authHeader := c.GetHeader("Authorization")
+
 		tokenString := authHeader[len(BEARER_SCHEMA):]
 		fmt.Println(tokenString)
 		claims, err := ValidateJWTToken(tokenString)
 		if err != nil {
 			log.Println("Authmiddleware error:", err)
 			c.IndentedJSON(http.StatusUnauthorized, "token not valid")
-			log.Println("err", err)
-			//	c.Abort()
+			c.Abort()
+			return
 		} else {
-			log.Println("no err", claims["id"])
 			c.Set("userId", claims["id"])
-			obj(c)
 		}
-		//c.Next()
+		c.Next()
 	}
 }

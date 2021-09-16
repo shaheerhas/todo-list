@@ -16,14 +16,10 @@ const ATTACHMENTFOLDER = "downloads"
 
 func (svc TaskApp) getTasksList(c *gin.Context) {
 	// should add functionality which gets id from context
-	userId, exists := c.Get("userId")
-	if !exists {
-		log.Println("couldn't get user-id from context")
-		// CHANGEE
-		log.Println(userId)
-		userId = 1
+	userId, exists := getId(c)
+	if exists != nil {
+		log.Println(exists)
 	}
-	log.Println(userId)
 	tasks, err := allTasks(svc, userId)
 	if err != nil {
 		c.IndentedJSON(http.StatusBadRequest, err)
@@ -34,14 +30,38 @@ func (svc TaskApp) getTasksList(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, tasks)
 }
 
+func getId(c *gin.Context) (uint, error) {
+	id, exists := c.Get("userId")
+
+	if exists {
+		uid, ok := id.(float64)
+		if ok {
+			return utils.ConvertInterfaceToUint(uid), nil
+		}
+	}
+	return 0, fmt.Errorf("couldn't parse id")
+}
+
 func (svc TaskApp) patchTask(c *gin.Context) {
-	//var task Task
 	var reqBody map[string]interface{}
 	if err := c.BindJSON(&reqBody); err != nil {
 		log.Println(err)
 		c.IndentedJSON(http.StatusBadRequest, "json format not correct")
 		return
 	}
+
+	var e error
+	reqBody["user_id"], e = getId(c)
+	if e != nil {
+		log.Println(e)
+	}
+
+	if err := checkUserTask(svc, utils.ConvertInterfaceToUint(reqBody["user_id"]), utils.ConvertInterfaceToUint(reqBody["id"])); err != nil {
+		log.Println(err)
+		c.IndentedJSON(http.StatusBadRequest, "this user doesn't have this task")
+		return
+	}
+
 	if err := updateTask(svc, reqBody); err != nil {
 		log.Println(err)
 		c.IndentedJSON(http.StatusInternalServerError, err)
@@ -58,16 +78,11 @@ func (svc TaskApp) postTask(c *gin.Context) {
 		return
 	}
 
-	uId, _ := c.Get("userId")
-	fmt.Println(uId)
-	fmt.Printf("%T", uId)
-	var err error
-	task.UserID, err = utils.ConvertInterfaceToUint(uId)
-
+	uId, err := getId(c)
 	if err != nil {
 		log.Println(err)
-		// REMOVE THIS
 	}
+	task.UserID = utils.ConvertInterfaceToUint(uId)
 
 	if err := createTask(svc, task); err != nil {
 		log.Println(err)
@@ -102,11 +117,10 @@ func (svc TaskApp) attachFile(c *gin.Context) {
 		c.IndentedJSON(http.StatusNotFound, "task with this id not found")
 		return
 	}
-	// add User's ID here from context
-	userId, exists := c.Get("userId")
-	if !exists {
-		log.Println("userId doesn't exist in the context")
-		userId = 1
+	// User's ID here from context
+	userId, err := getId(c)
+	if err != nil {
+		log.Println(err)
 	}
 	fileName := fmt.Sprintf("%s/%v_%s", ATTACHMENTFOLDER, userId, file.Filename)
 	err = c.SaveUploadedFile(file, fileName)
@@ -164,6 +178,17 @@ func (svc TaskApp) deleteTask(c *gin.Context) {
 		c.IndentedJSON(http.StatusBadRequest, "taskid should be numeric")
 		return
 	}
+
+	userId, err := getId(c)
+	if err != nil {
+		log.Println(err)
+	}
+	if err := checkUserTask(svc, userId, uint(taskId)); err != nil {
+		log.Println(err)
+		c.IndentedJSON(http.StatusBadRequest, "this user doesn't have this task")
+		return
+	}
+
 	if err := deleteTask(svc, taskId); err != nil {
 		log.Println(err)
 		c.IndentedJSON(http.StatusNotFound, "task with this id not found in db")

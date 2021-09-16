@@ -17,7 +17,7 @@ func CheckPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
-func ConvertInterfaceToUint(i interface{}) (uint, error) {
+func ConvertInterfaceToUint(i interface{}) uint {
 
 	var uId uint64
 	switch v := i.(type) {
@@ -25,10 +25,8 @@ func ConvertInterfaceToUint(i interface{}) (uint, error) {
 		uId, err := strconv.ParseUint(v, 10, 32)
 		if err != nil {
 			log.Println("err, uId", err, uId)
-			return 0, err
+			return 0
 		}
-		return uint(uId), nil
-
 	case float64:
 		{
 			uId = uint64(v)
@@ -37,7 +35,8 @@ func ConvertInterfaceToUint(i interface{}) (uint, error) {
 		{
 			uId = uint64(v)
 		}
+
 	}
 
-	return uint(uId), nil
+	return uint(uId)
 }

@@ -5,21 +5,16 @@ import (
 	"github.com/shaheerhas/todo-list/app/auth"
 )
 
-type GinCtxFunc interface {
-}
-
 func Route(router *gin.Engine, svc TaskApp) {
 
-	//	authorizationReq := router.Group("/")
+	authorized := router.Group("/").Use(auth.AuthMiddleware(&gin.Context{}))
 
-	//	 authorizationReq.Use(auth.AuthMiddleware())
-	//	 {
-	router.GET("/tasks", auth.AuthMiddleware(svc.getTasksList))
-	router.PATCH("/tasks", auth.AuthMiddleware(svc.patchTask))
-	router.POST("/tasks", auth.AuthMiddleware(svc.postTask))
-	router.DELETE("/tasks/:taskid", auth.AuthMiddleware(svc.deleteTask))
-	router.POST("/attachment/:taskid", auth.AuthMiddleware(svc.attachFile))
-	router.GET("/attachment/:taskid", auth.AuthMiddleware(svc.downloadFile))
-	router.DELETE("attachment/:taskid", auth.AuthMiddleware(svc.deleteFile))
-	//}
+	authorized.GET("/tasks", svc.getTasksList)
+	authorized.PATCH("/tasks", svc.patchTask)
+	authorized.POST("/tasks", svc.postTask)
+	authorized.DELETE("/tasks/:taskid", svc.deleteTask)
+	authorized.POST("/attachment/:taskid", svc.attachFile)
+	authorized.GET("/attachment/:taskid", svc.downloadFile)
+	authorized.DELETE("attachment/:taskid", svc.deleteFile)
+
 }

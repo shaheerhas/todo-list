@@ -1,5 +1,7 @@
 package tasks
 
+import "gorm.io/gorm"
+
 type NoTasks struct{}
 
 func (m *NoTasks) Error() string {
@@ -40,6 +42,14 @@ func getTaskById(svc TaskApp, id int) (Task, error) {
 	}
 	return task, nil
 
+}
+
+func checkUserTask(svc TaskApp, userId, taskId uint) error {
+	result := svc.Db.Where("id = ? AND user_id = ?", taskId, userId).Find(&Task{})
+	if result.RowsAffected < 1 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func deleteTask(svc TaskApp, id int) error {
