@@ -2,21 +2,34 @@ package main
 
 import (
 	"fmt"
+	"github.com/shaheerhas/todo-list/app/auth"
+	"log"
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"github.com/shaheerhas/todo-list/app/tasks"
 	"github.com/shaheerhas/todo-list/app/users"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-var dbName = os.Getenv("DB_NAME")
-var password = os.Getenv("DB_PASSWORD")
+func init() {
+	err := godotenv.Load(".env")
 
+	if err != nil {
+		log.Println(err)
+	}
+
+}
+
+// create a struct for db
 func setupDb() (*gorm.DB, error) {
-	//	dsn := "host=localhost user=postgres password=tiger123 dbname=todo-list port=5432 sslmode=disable TimeZone=Asia/Shanghai"
-	dsn := fmt.Sprintf("host=localhost user=postgres password=%s dbname=%s port=%v sslmode=disable TimeZone=Asia/Shanghai", password, dbName, 5432)
+	var dbName = os.Getenv("DB_NAME")
+	var password = os.Getenv("DB_PASSWORD")
+	var port = os.Getenv("DB_PORT")
+	dsn := fmt.Sprintf("host=localhost user=postgres password=%s dbname=%s port=%v sslmode=disable TimeZone=Asia/Shanghai", password, dbName, port)
+
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, err
@@ -31,15 +44,22 @@ func start() {
 
 	router := gin.Default()
 
+	authApp := auth.AuthApp{Db: db}
+	authApp.InitBlackListModel()
+
 	taskApp := tasks.TaskApp{Db: db}
-	tasks.Route(router, taskApp)
+	tasks.Route(router, taskApp, authApp)
 	taskApp.InitTaskDb()
 
 	userApp := users.UserModelApp{Db: db}
-	users.Route(router, userApp)
+	users.Route(router, userApp, authApp)
 	userApp.InitUserModelDB()
 
-	router.Run()
+	err = router.Run()
+	if err != nil {
+		log.Println(err)
+		return
+	}
 }
 func main() {
 	start()

@@ -1,41 +1,39 @@
 package users
 
-import "fmt"
-
-type NoUsers struct{}
-
-func (m *NoUsers) Error() string {
-	return "no users in db"
-}
+import (
+	"fmt"
+)
 
 func allUsers(svc UserModelApp, users *[]UserModel) error {
 	if err := svc.Db.Find(&users).Error; err != nil {
 		return err
 	}
 	if len(*users) == 0 {
-		return &NoUsers{}
+		return fmt.Errorf("no users in db")
 	}
 	return nil
 }
 
-func updateStatus(svc UserModelApp, user UserModel, status bool) error {
-	err := svc.Db.Model(&user).Where("email = ?", user.Email).Update("is_verified", status).Error
-	if err != nil {
-		return err
-	}
-	return nil
+func updateStatus(svc UserModelApp, userId uint, status bool) error {
+	err := svc.Db.Model(&UserModel{}).Where("id = ?", userId).Update("is_verified", status).Error
+	return err
+}
+
+func updatePassword(svc UserModelApp, userId uint, password string) error {
+	err := svc.Db.Model(&UserModel{}).Where("id = ?", userId).Update("password", password).Error
+	return err
 }
 
 func getUser(svc UserModelApp, email string) (UserModel, error) {
-	var loginUser UserModel
-	result := svc.Db.Where("email = ?", email).Find(&loginUser)
+	var user UserModel
+	result := svc.Db.Where("email = ?", email).Find(&user)
 	if result.Error != nil {
-		return loginUser, result.Error
+		return user, result.Error
 	}
 	if result.RowsAffected < 1 {
-		return loginUser, fmt.Errorf("no user found with this email")
+		return user, fmt.Errorf("no user found with this email")
 	}
-	return loginUser, nil
+	return user, nil
 
 }
 

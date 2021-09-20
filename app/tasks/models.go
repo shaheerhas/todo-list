@@ -1,25 +1,37 @@
 package tasks
 
 import (
+	"log"
 	"time"
 
 	"gorm.io/gorm"
 )
 
 type Task struct {
-	ID           uint   `gorm:"autoIncrement;primaryKey"`
-	Title        string `gorm:"not null"`
-	Details      string
-	CreationTime time.Time
-	DueTime      time.Time
-	Status       bool `gorm:"not null; default:false"`
-	File         string
-	UserID       uint `gorm:"not null"`
+	ID             uint   `gorm:"autoIncrement;primaryKey"`
+	Title          string `gorm:"not null"`
+	Details        string
+	CreatedAt      time.Time
+	DueTime        time.Time
+	CompletionTime time.Time
+	Status         bool `gorm:"not null; default:false"`
+	File           string
+	UserID         uint `gorm:"not null;"`
 }
 type TaskApp struct {
 	Db *gorm.DB
 }
 
-func (t *TaskApp) InitTaskDb() {
-	t.Db.AutoMigrate(&Task{})
+type TaskCount struct {
+	Total     int64
+	Completed int64
+	Remaining int64
+}
+
+func (svc *TaskApp) InitTaskDb() {
+	err := svc.Db.AutoMigrate(&Task{})
+	if err != nil {
+		log.Println(err)
+		return
+	}
 }

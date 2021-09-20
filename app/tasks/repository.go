@@ -1,6 +1,10 @@
 package tasks
 
-import "gorm.io/gorm"
+import (
+	"fmt"
+	"gorm.io/gorm"
+	"time"
+)
 
 type NoTasks struct{}
 
@@ -19,7 +23,13 @@ func createTask(svc TaskApp, task Task) error {
 
 func updateTask(svc TaskApp, updatedTask map[string]interface{}) error {
 	var task Task
-	if err := svc.Db.Where("id = ?", updatedTask["id"]).First(&task).Error; err != nil {
+	if updatedTask["status"].(bool) { // task is completed
+		updatedTask["completion_time"] = time.Now() // set completion time to now
+	} else {
+		updatedTask["completion_time"] = time.Time{}
+	}
+	fmt.Println(updatedTask)
+	if err := svc.Db.Where("id = ?", updatedTask["id"]).Where("user_id = ?", updatedTask["user_id"]).First(&task).Error; err != nil {
 		return err
 	}
 
@@ -45,6 +55,7 @@ func getTaskById(svc TaskApp, id int) (Task, error) {
 }
 
 func checkUserTask(svc TaskApp, userId, taskId uint) error {
+	fmt.Println("db", userId, taskId)
 	result := svc.Db.Where("id = ? AND user_id = ?", taskId, userId).Find(&Task{})
 	if result.RowsAffected < 1 {
 		return gorm.ErrRecordNotFound
@@ -97,4 +108,50 @@ func getFilePath(svc TaskApp, taskId int) (string, error) {
 func deleteFilePath(svc TaskApp, taskId int) error {
 	//assign zero value to file path in db
 	return addFilePath(svc, "", taskId)
+}
+
+func getTasksCount(svc TaskApp, userId uint) (TaskCount, error) {
+
+	//select count(id) from tasks where user_id = userId;
+	var totalTasks int64
+	var completedTasks int64
+	err := svc.Db.Model(&Task{}).Where("user_id = ?", userId).Count(&totalTasks)
+	if err.Error != nil {
+		return TaskCount{}, err.Error
+	}
+
+	err = svc.Db.Model(&Task{}).Where("user_id = ?", userId).Where("status = ?", true).Count(&completedTasks)
+	taskCount := TaskCount{
+		Total:     totalTasks,
+		Completed: completedTasks,
+		Remaining: totalTasks - completedTasks,
+	}
+	return taskCount, err.Error
+}
+
+type DayAverage struct {
+	Date    time.Time
+	Average int64
+}
+
+//map[string]interface{}
+func GetTasksAverage(svc TaskApp, userId uint) {
+	//var result []DayAverage
+	result := map[string]interface{}{}
+	//SELECT avg(status::INTEGER),date(creation_time) FROM "tasks" GROUP BY date(creation_time);
+	svc.Db.Table("tasks").Select("date(creation_time) as day_, sum(status::INTEGER)").Group("day_").Take(&result)
+	//rows, _ := svc.Db.Table("tasks").Select("date(creation_time) as day_, sum(status::INTEGER)").Where("user_id = ?", userId).Group("day_").Rows()
+	//defer rows.Close()
+	//
+	//for rows.Next() {
+	//	var user DayAverage
+	//	// ScanRows is a method of `gorm.DB`, it can be used to scan a row into a struct
+	//	svc.Db.ScanRows(rows, &user)
+	//
+	//	// do something
+	//	fmt.Println(user)
+	//}
+
+	fmt.Println(result)
+	//return result
 }

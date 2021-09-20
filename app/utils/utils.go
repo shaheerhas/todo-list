@@ -1,11 +1,16 @@
 package utils
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+func Response(statusCode int, msg string) (int, map[string]string) {
+	return statusCode, map[string]string{"msg": msg}
+}
 
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
@@ -18,25 +23,33 @@ func CheckPasswordHash(password, hash string) bool {
 }
 
 func ConvertInterfaceToUint(i interface{}) uint {
-
-	var uId uint64
+	var uId int
 	switch v := i.(type) {
 	case string:
-		uId, err := strconv.ParseUint(v, 10, 32)
-		if err != nil {
-			log.Println("err, uId", err, uId)
-			return 0
+		{
+			uId, _ = strconv.Atoi(v)
 		}
 	case float64:
 		{
-			uId = uint64(v)
+			uId = int(v)
 		}
 	case int:
 		{
-			uId = uint64(v)
+			uId = int(v)
 		}
-
+	case int64:
+		{
+			uId = int(v)
+		}
+	case uint:
+		{
+			uId = int(v)
+		}
+	default:
+		{
+			log.Println("couldn't parse id")
+		}
 	}
-
+	fmt.Println("uid func2", uint(uId))
 	return uint(uId)
 }
