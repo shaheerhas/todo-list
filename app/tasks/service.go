@@ -25,7 +25,6 @@ func getId(c *gin.Context) (uint, error) {
 }
 
 func (svc TaskApp) getTasksList(c *gin.Context) {
-	// should add functionality which gets id from context
 	userId, exists := getId(c)
 	if exists != nil {
 		log.Println(exists)
@@ -95,6 +94,38 @@ func (svc TaskApp) postTask(c *gin.Context) {
 	c.JSON(utils.Response(http.StatusCreated, msg))
 }
 
+func (svc TaskApp) report1(c *gin.Context) {
+	userId, err := getId(c)
+	if err != nil {
+		log.Println(err)
+	}
+	counts, err := getTasksCount(svc, userId)
+	if err != nil {
+		log.Println(err)
+		msg := "couldn't generate report"
+		c.JSON(utils.Response(http.StatusInternalServerError, msg))
+	}
+
+	//msg := fmt.Sprintf("Report1:\nTotal Tasks:%v\nCompleted Tasks%v\nRemaining Tasks%v", counts.Total, counts.Completed, counts.Remaining)
+	c.JSON(http.StatusOK, counts)
+}
+
+func (svc TaskApp) report2(c *gin.Context) {
+	userId, err := getId(c)
+	if err != nil {
+		log.Println(err)
+	}
+	avgTasks, err := getTasksAverage(svc, userId)
+	if err != nil {
+		log.Println(err)
+		msg := "couldn't generate report"
+		c.JSON(utils.Response(http.StatusInternalServerError, msg))
+		return
+	}
+
+	c.JSON(http.StatusOK, avgTasks)
+}
+
 func (svc TaskApp) getTaskById(c *gin.Context) {
 
 }
@@ -116,18 +147,18 @@ func (svc TaskApp) attachFile(c *gin.Context) {
 		c.JSON(utils.Response(http.StatusBadRequest, msg))
 		return
 	}
-
-	if _, err := getTaskById(svc, taskId); err != nil {
-		log.Println(err)
-		msg := "task with this id not found"
-		c.JSON(utils.Response(http.StatusNotFound, msg))
-		return
-	}
 	// User's ID here from context
 	userId, err := getId(c)
 	if err != nil {
 		log.Println(err)
 	}
+	if _, err := getTaskById(svc, taskId, int(userId)); err != nil {
+		log.Println(err)
+		msg := "task with this id not found"
+		c.JSON(utils.Response(http.StatusNotFound, msg))
+		return
+	}
+
 	var attachmentFolder = os.Getenv("ATTACHMENT_FOLDER")
 	fileName := fmt.Sprintf("%s/%v_%s", attachmentFolder, userId, file.Filename)
 	log.Println(fileName, "uploaded")
@@ -178,7 +209,7 @@ func (svc TaskApp) downloadFile(c *gin.Context) {
 		}
 	}(file)
 
-	c.Writer.Header().Add("Content-type", "application/octet-stream")
+	c.Writer.Header().Add("Content-type", "application/zip")
 	_, err = io.Copy(c.Writer, file)
 	if err != nil {
 		log.Println(err)

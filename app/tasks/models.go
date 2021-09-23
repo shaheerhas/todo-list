@@ -16,7 +16,7 @@ type Task struct {
 	CompletionTime time.Time
 	Status         bool `gorm:"not null; default:false"`
 	File           string
-	UserID         uint `gorm:"not null;"`
+	UserID         uint `gorm:"not null"`
 }
 type TaskApp struct {
 	Db *gorm.DB
@@ -26,6 +26,11 @@ type TaskCount struct {
 	Total     int64
 	Completed int64
 	Remaining int64
+}
+
+type TaskCompleted struct {
+	Avg float64
+	Day time.Time
 }
 
 func (svc *TaskApp) InitTaskDb() {

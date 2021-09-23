@@ -1,31 +1,23 @@
 package users
 
 import (
-	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/shaheerhas/todo-list/app/auth"
 	"github.com/shaheerhas/todo-list/app/utils"
+	"golang.org/x/oauth2"
 	"gopkg.in/gomail.v2"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 )
 
-func (svc UserModelApp) getUsers(c *gin.Context) {
-	var users []UserModel
-	err := allUsers(svc, &users)
-	if err != nil {
-		log.Println(err)
-		msg := "record not found"
-		c.JSON(utils.Response(http.StatusInternalServerError, msg))
-		return
-	}
-	c.JSON(http.StatusOK, users)
-
-}
+var oauthConf *oauth2.Config
+var oauthStateString string
 
 func (svc UserModelApp) login(c *gin.Context) {
 	var user UserModel
@@ -35,7 +27,14 @@ func (svc UserModelApp) login(c *gin.Context) {
 		c.JSON(utils.Response(http.StatusBadRequest, msg))
 		return
 	}
+
 	loginUser, err := getUser(svc, user.Email)
+	if !loginUser.IsVerified {
+		log.Println("user not verified yet")
+		msg := "please verify your email first"
+		c.JSON(utils.Response(http.StatusForbidden, msg))
+		return
+	}
 	if err != nil {
 		log.Println(err)
 		msg := "user with this email not found"
@@ -61,21 +60,151 @@ func (svc UserModelApp) login(c *gin.Context) {
 
 }
 
+func initOAuth() {
+	oauthStateString = os.Getenv("FB_STATE_STRING")
+	oauthConf = &oauth2.Config{
+		ClientID:     os.Getenv("FB_APP_ID"),
+		ClientSecret: os.Getenv("FB_CLIENT_SECRET"),
+		RedirectURL:  os.Getenv("FB_CALLBACK_URL"),
+		Scopes:       []string{"public_profile", "email"},
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://www.facebook.com/v12.0/dialog/oauth",
+			TokenURL: "https://graph.facebook.com/v12.0/oauth/access_token",
+		},
+	}
+}
+
+func (svc UserModelApp) fbLogin(c *gin.Context) {
+	initOAuth()
+	URL := oauthConf.AuthCodeURL(oauthStateString)
+	log.Println(URL)
+	c.Redirect(http.StatusTemporaryRedirect, URL)
+}
+
+func (svc UserModelApp) fbCallBack(c *gin.Context) {
+	state := c.Request.FormValue("state")
+	if state != oauthStateString {
+		log.Printf("invalid oauth state, expected '%s', got '%s'\n", oauthStateString, state)
+		msg := "invalid oauth state"
+		c.JSON(utils.Response(http.StatusBadRequest, msg))
+		return
+	}
+
+	code := c.Request.FormValue("code")
+	token, err := oauthConf.Exchange(c, code)
+
+	if err != nil {
+		log.Printf("oauthConf.Exchange() failed with '%s'\n", err)
+		msg := "invalid or malformed payload"
+		c.JSON(utils.Response(http.StatusBadRequest, msg))
+		return
+	}
+
+	resp, err := http.Get("https://graph.facebook.com/me?fields=id,name,email&access_token=" +
+		url.QueryEscape(token.AccessToken))
+	if err != nil {
+		log.Println(err)
+		msg := "invalid or malformed payload"
+		c.JSON(utils.Response(http.StatusBadRequest, msg))
+		return
+	}
+
+	var respJSON map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&respJSON)
+	if err != nil {
+		log.Println(err)
+		msg := "invalid or malformed payload"
+		c.JSON(utils.Response(http.StatusBadRequest, msg))
+		return
+	}
+
+	user, err := svc.fbSignup(respJSON)
+	// handle two types of errors, one is that user is already registered
+	// second just log the error
+	if err != nil {
+		if strings.Contains(err.Error(), "already registered") {
+			log.Println("user already registered")
+			jwtToken, err := auth.GenerateJWTToken(user.ID, user.Email)
+			if err != nil {
+				log.Println(err)
+			}
+			c.SetCookie("accessToken", jwtToken, 0, "", "", false, false)
+			msg := "login success"
+			c.JSON(utils.Response(http.StatusOK, msg))
+			return
+		}
+
+		log.Println(err)
+		msg := "user cannot be registered on server"
+		c.JSON(utils.Response(http.StatusInternalServerError, msg))
+		return
+	}
+	msg := "user created successfully"
+	log.Println("user email", user.Email, respJSON["email"])
+	jwtToken, err := auth.GenerateJWTToken(user.ID, respJSON["email"].(string))
+	if err != nil {
+		log.Println(err)
+	}
+	c.SetCookie("accessToken", jwtToken, 0, "", "", false, false)
+	msg += "\nlogin success"
+	//c.JSON(utils.Response(http.StatusOK, msg))
+	c.JSON(utils.Response(http.StatusCreated, msg))
+
+}
+
+func (svc UserModelApp) fbSignup(fbUser map[string]interface{}) (UserModel, error) {
+	email := fbUser["email"].(string)
+	name := strings.Split(fbUser["name"].(string), " ")
+
+	user := UserModel{
+		FirstName:  name[0],
+		LastName:   name[1],
+		Email:      email,
+		Password:   "",
+		IsVerified: true,
+		FbUser:     true,
+		Tasks:      nil,
+	}
+	dbUser, err := createUser(svc, user)
+	if dbUser.ID == 0 {
+		msg := "already registered"
+		retUser, _ := getUser(svc, email)
+		return retUser, fmt.Errorf(msg)
+	}
+	return dbUser, err
+}
+
 func (svc UserModelApp) logout(c *gin.Context) {
-	//userId := getId(c)
 	tokenString, err := c.Cookie("accessToken")
 	if err != nil {
 		log.Println(err)
 	}
 	token := auth.BlackListToken{TokenVal: tokenString}
-	err = auth.CreateToken(token)
+	err = auth.CreateBlackListToken(token)
 	if err != nil {
 		log.Println(err)
-		return
 	}
 	c.SetCookie("accessToken", "", -1, "/", "", false, false)
 	msg := "user logged out successfully"
 	c.JSON(utils.Response(http.StatusOK, msg))
+}
+
+func sendEmail(user UserModel, body, subject string) error {
+	var senderEmail = os.Getenv("SENDER_EMAIL")
+	var senderPassword = os.Getenv("SENDER_PASSWORD")
+	msg := gomail.NewMessage()
+	msg.SetHeader("From", senderEmail)
+	fmt.Println(senderEmail)
+	msg.SetHeader("To", user.Email)
+	msg.SetHeader("Subject", subject)
+
+	msg.SetBody("text/html", body)
+	d := gomail.NewDialer("smtp.gmail.com", 587, senderEmail, senderPassword)
+
+	if err := d.DialAndSend(msg); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (svc UserModelApp) signup(c *gin.Context) {
@@ -83,6 +212,13 @@ func (svc UserModelApp) signup(c *gin.Context) {
 	if err := c.BindJSON(&user); err != nil {
 		log.Println(err)
 		msg := "invalid or malformed payload"
+		c.JSON(utils.Response(http.StatusBadRequest, msg))
+		return
+	}
+
+	if user.Password == "" {
+		msg := "password cannot be empty"
+		log.Println("empty password error:", msg)
 		c.JSON(utils.Response(http.StatusBadRequest, msg))
 		return
 	}
@@ -106,7 +242,7 @@ func (svc UserModelApp) signup(c *gin.Context) {
 	}
 	var confirmationUrl = os.Getenv("CONFIRMATION_URL")
 	body := "Hi, click this link below to confirm your Todo-list Account\n"
-	body += confirmationUrl + "/" + encode(user.Email, user.ID)
+	body += confirmationUrl + "/" + utils.Encode(user.Email, user.ID)
 	err = sendEmail(user, body, "Todo-list Account Confirmation")
 	if err != nil {
 		log.Println(err)
@@ -116,35 +252,6 @@ func (svc UserModelApp) signup(c *gin.Context) {
 	}
 	msg := "user successfully created, check your email for confirmation email"
 	c.JSON(utils.Response(http.StatusCreated, msg))
-}
-
-func encode(email string, id uint) string {
-	email += "?" + strconv.Itoa(int(id))
-	encoded := base64.URLEncoding.EncodeToString([]byte(email))
-	return encoded
-}
-
-func decode(encodedUrl string) (string, error) {
-	decoded, err := base64.URLEncoding.DecodeString(encodedUrl)
-	return string(decoded), err
-}
-
-func sendEmail(user UserModel, body, subject string) error {
-	var senderEmail = os.Getenv("SENDER_EMAIL")
-	var senderPassword = os.Getenv("SENDER_PASSWORD")
-	msg := gomail.NewMessage()
-	msg.SetHeader("From", senderEmail)
-	fmt.Println(senderEmail)
-	msg.SetHeader("To", user.Email)
-	msg.SetHeader("Subject", subject)
-
-	msg.SetBody("text/html", body)
-	d := gomail.NewDialer("smtp.gmail.com", 587, senderEmail, senderPassword)
-
-	if err := d.DialAndSend(msg); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (svc UserModelApp) forgotPassword(c *gin.Context) {
@@ -167,9 +274,9 @@ func (svc UserModelApp) forgotPassword(c *gin.Context) {
 
 	resetPasswordLink := os.Getenv("RESET_PASSWORD")
 	subject := "Password Reset Request for Todo-List App"
-	body := "Hi, " + user.FirstName + ", we got a request from your account to reset your password"
+	body := "Hi, " + user.FirstName + ", we got a request from your account to reset your password."
 	body += "\nClick the link  below to reset your account, or just ignore this email if you didn't request resetting your password.\n"
-	body += "\n" + resetPasswordLink + "/" + encode(user.Email, user.ID)
+	body += "\n\r\n" + resetPasswordLink + "/" + utils.Encode(user.Email, user.ID)
 	err = sendEmail(user, body, subject)
 	if err != nil {
 		log.Println(err)
@@ -185,16 +292,21 @@ func (svc UserModelApp) forgotPassword(c *gin.Context) {
 func (svc UserModelApp) resetPassword(c *gin.Context) {
 	encodedString := c.Param("emailToken")
 	if auth.IsBlackListed(encodedString) {
-		msg := "user already has reset their password"
+		msg := "password reset link invalid"
 		c.JSON(utils.Response(http.StatusConflict, msg))
 		return
 	}
 
-	decodedEmailID, err := decode(encodedString)
+	decodedEmailID, err := utils.Decode(encodedString)
 	if err != nil {
 		log.Println(err)
 	}
 	decoded := strings.Split(decodedEmailID, "?")
+	if len(decoded) < 1 {
+		msg := "incorrect confirmation token"
+		c.JSON(utils.Response(http.StatusBadRequest, msg))
+		return
+	}
 	decodedEmail := decoded[0]
 	decodedID := decoded[1]
 	user, err := getUser(svc, decodedEmail)
@@ -229,10 +341,9 @@ func (svc UserModelApp) resetPassword(c *gin.Context) {
 		c.JSON(utils.Response(http.StatusInternalServerError, msg))
 		return
 	}
-	err = auth.CreateToken(auth.BlackListToken{TokenVal: encodedString})
+	err = auth.CreateBlackListToken(auth.BlackListToken{TokenVal: encodedString})
 	if err != nil {
 		log.Println(err)
-		return
 	}
 	msg := "password successfully updated"
 	c.JSON(utils.Response(http.StatusOK, msg))
@@ -240,11 +351,17 @@ func (svc UserModelApp) resetPassword(c *gin.Context) {
 
 func (svc UserModelApp) confirmUser(c *gin.Context) {
 	encodedString := c.Param("emailToken")
-	decodedEmailID, err := decode(encodedString)
+	decodedEmailID, err := utils.Decode(encodedString)
 	if err != nil {
 		log.Println(err)
 	}
+
 	decoded := strings.Split(decodedEmailID, "?")
+	if len(decoded) < 2 {
+		msg := "incorrect confirmation token"
+		c.JSON(utils.Response(http.StatusBadRequest, msg))
+		return
+	}
 	decodedEmail := decoded[0]
 	decodedID := decoded[1]
 

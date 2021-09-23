@@ -18,7 +18,7 @@ func GenerateJWTToken(id uint, email string) (string, error) {
 	authClaims := jwt.MapClaims{}
 	authClaims["email"] = email
 	authClaims["id"] = id
-	authClaims["exp"] = time.Now().Add(time.Minute * 20).Unix()
+	authClaims["exp"] = time.Now().Add(time.Minute * 60).Unix()
 
 	auth := jwt.NewWithClaims(jwt.SigningMethodHS256, authClaims)
 	token, err := auth.SignedString([]byte(secretKey))
@@ -70,7 +70,7 @@ func (authApp AuthApp) AuthMiddleware(c *gin.Context) gin.HandlerFunc {
 			c.JSON(utils.Response(http.StatusUnauthorized, msg))
 			c.Abort()
 			return
-		} else if IsBlackListed(authApp, tokenString) {
+		} else if IsBlackListed(tokenString) {
 			log.Println("Middleware error:", "token black listed")
 			msg := "token not valid"
 			c.JSON(utils.Response(http.StatusUnauthorized, msg))

@@ -4,7 +4,7 @@ import (
 	"log"
 )
 
-func CreateToken(token BlackListToken) error {
+func CreateBlackListToken(token BlackListToken) error {
 	result := Db.Create(&token)
 	if result.Error != nil {
 		return result.Error

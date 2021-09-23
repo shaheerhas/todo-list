@@ -7,13 +7,14 @@ import (
 )
 
 type UserModel struct {
-	ID         uint         `gorm:"autoIncrement; primaryKey"`
-	FirstName  string       `gorm:"not null"`
-	LastName   string       `gorm:"not null"`
-	Email      string       `gorm:"not null;unique"`
-	Password   string       `gorm:"not null"`
-	IsVerified bool         `gorm:"not null; default:false"`
-	Tasks      []tasks.Task `gorm:"ForeignKey:UserID; onDelete CASCADE"`
+	ID         uint   `gorm:"autoIncrement; primaryKey"`
+	FirstName  string `gorm:"not null"`
+	LastName   string `gorm:"not null"`
+	Email      string `gorm:"not null;unique"`
+	Password   string
+	IsVerified bool `gorm:"not null; default:false"`
+	FbUser     bool
+	Tasks      []tasks.Task `gorm:"ForeignKey:UserID; onDelete CASCADE; references:ID"`
 }
 
 type UserModelApp struct {

@@ -41,9 +41,9 @@ func updateTask(svc TaskApp, updatedTask map[string]interface{}) error {
 
 }
 
-func getTaskById(svc TaskApp, id int) (Task, error) {
+func getTaskById(svc TaskApp, id, userId int) (Task, error) {
 	var task Task
-	if err := svc.Db.Where("id = ?", id).First(&task).Error; err != nil {
+	if err := svc.Db.Where("id = ?", id).Where("user_id = ?", userId).First(&task).Error; err != nil {
 		return task, err
 	}
 	if task.ID == 0 {
@@ -111,8 +111,6 @@ func deleteFilePath(svc TaskApp, taskId int) error {
 }
 
 func getTasksCount(svc TaskApp, userId uint) (TaskCount, error) {
-
-	//select count(id) from tasks where user_id = userId;
 	var totalTasks int64
 	var completedTasks int64
 	err := svc.Db.Model(&Task{}).Where("user_id = ?", userId).Count(&totalTasks)
@@ -129,29 +127,8 @@ func getTasksCount(svc TaskApp, userId uint) (TaskCount, error) {
 	return taskCount, err.Error
 }
 
-type DayAverage struct {
-	Date    time.Time
-	Average int64
-}
-
-//map[string]interface{}
-func GetTasksAverage(svc TaskApp, userId uint) {
-	//var result []DayAverage
-	result := map[string]interface{}{}
-	//SELECT avg(status::INTEGER),date(creation_time) FROM "tasks" GROUP BY date(creation_time);
-	svc.Db.Table("tasks").Select("date(creation_time) as day_, sum(status::INTEGER)").Group("day_").Take(&result)
-	//rows, _ := svc.Db.Table("tasks").Select("date(creation_time) as day_, sum(status::INTEGER)").Where("user_id = ?", userId).Group("day_").Rows()
-	//defer rows.Close()
-	//
-	//for rows.Next() {
-	//	var user DayAverage
-	//	// ScanRows is a method of `gorm.DB`, it can be used to scan a row into a struct
-	//	svc.Db.ScanRows(rows, &user)
-	//
-	//	// do something
-	//	fmt.Println(user)
-	//}
-
-	fmt.Println(result)
-	//return result
+func getTasksAverage(svc TaskApp, userId uint) ([]TaskCompleted, error) {
+	var result []TaskCompleted
+	err := svc.Db.Table("tasks").Select("date(completion_time) as day, AVG(status::INTEGER)").Group("day").Scan(&result).Error
+	return result, err
 }
