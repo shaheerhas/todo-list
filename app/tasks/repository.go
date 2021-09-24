@@ -3,6 +3,7 @@ package tasks
 import (
 	"fmt"
 	"gorm.io/gorm"
+	"log"
 	"time"
 )
 
@@ -77,7 +78,7 @@ func deleteTask(svc TaskApp, id int) error {
 
 }
 
-func allTasks(svc TaskApp, id interface{}) ([]Task, error) {
+func allTasks(svc TaskApp, id uint) ([]Task, error) {
 	var tasks []Task
 	if err := svc.Db.Where("user_id = ?", id).Find(&tasks).Error; err != nil {
 		return nil, err
@@ -110,6 +111,7 @@ func deleteFilePath(svc TaskApp, taskId int) error {
 	return addFilePath(svc, "", taskId)
 }
 
+//- Count of tasks which could not be completed on time
 func getTasksCount(svc TaskApp, userId uint) (TaskCount, error) {
 	var totalTasks int64
 	var completedTasks int64
@@ -127,8 +129,39 @@ func getTasksCount(svc TaskApp, userId uint) (TaskCount, error) {
 	return taskCount, err.Error
 }
 
+//- Average number of tasks completed per day since creation of account
 func getTasksAverage(svc TaskApp, userId uint) ([]TaskCompleted, error) {
 	var result []TaskCompleted
-	err := svc.Db.Table("tasks").Select("date(completion_time) as day, AVG(status::INTEGER)").Group("day").Scan(&result).Error
+	err := svc.Db.Table("tasks").Select("date(created_at) as day, AVG(status::INTEGER)").Where("user_id", userId).Group("day").Scan(&result).Error
 	return result, err
+}
+
+//- Count of tasks which could not be completed on time
+func getOverDueTasks(svc TaskApp, userId uint) (int64, error) {
+	var count int64
+	err := svc.Db.Table("tasks").Select("count(*)").Where("completion_time > due_time").Where("user_id", userId).Scan(&count).Error
+	return count, err
+}
+
+// - Since time of account creation, on what date, maximum number of tasks were completed in a single day
+func getMaxTasksCompletedDay(svc TaskApp, userId uint) (string, error) {
+	var date time.Time
+	var maxCompletedTask = make(map[string]interface{}, 2)
+	err := svc.Db.Table(""+
+		"tasks").Select("completion_time::date as day,count(status::INTEGER) as cont").Where(""+
+		"user_id", userId).Group("day").Order("cont desc").Limit(1).Scan(&maxCompletedTask)
+
+	date, _ = maxCompletedTask["day"].(time.Time)
+	return date.String(), err.Error
+}
+
+//- Since time of account creation, how many tasks are opened on every day of the week (mon, tue, wed, ....)
+func getOpenedTaskPerDay(svc TaskApp, userId uint) ([]map[string]interface{}, error) {
+
+	var openedTasksPerDay []map[string]interface{}
+	err := svc.Db.Table(""+
+		"tasks").Select("created_at::date as day, count(1) as count").Where(""+
+		"user_id", userId).Group("day").Scan(&openedTasksPerDay)
+	log.Println(openedTasksPerDay)
+	return openedTasksPerDay, err.Error
 }

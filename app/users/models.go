@@ -14,7 +14,7 @@ type UserModel struct {
 	Password   string
 	IsVerified bool `gorm:"not null; default:false"`
 	FbUser     bool
-	Tasks      []tasks.Task `gorm:"ForeignKey:UserID; onDelete CASCADE; references:ID"`
+	Tasks      []tasks.Task `gorm:"foreignKey:UserID; onDelete:cascade"`
 }
 
 type UserModelApp struct {

@@ -2,10 +2,7 @@ package utils
 
 import (
 	"encoding/base64"
-	"encoding/json"
-	"io"
 	"log"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -16,26 +13,16 @@ func Response(statusCode int, msg string) (int, map[string]string) {
 	return statusCode, map[string]string{"msg": msg}
 }
 
-func GetJson(r *http.Response, target interface{}) error {
-
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(r.Body)
-
-	return json.NewDecoder(r.Body).Decode(target)
-}
-
+// Encode encodes incoming parameters to a hash, EncodeToString returns the base64 encoding of src.
 func Encode(email string, id uint) string {
 	email += "?" + strconv.Itoa(int(id)) + "?" + strconv.Itoa(int(time.Now().Unix()))
 	encoded := base64.URLEncoding.EncodeToString([]byte(email))
 	return encoded
 }
 
-func Decode(encodedUrl string) (string, error) {
-	decoded, err := base64.URLEncoding.DecodeString(encodedUrl)
+// Decode decodes the previously encoded url
+func Decode(encodedString string) (string, error) {
+	decoded, err := base64.URLEncoding.DecodeString(encodedString)
 	return string(decoded), err
 }
 

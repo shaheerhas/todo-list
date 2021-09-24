@@ -13,10 +13,14 @@ func Route(router *gin.Engine, svc TaskApp, authApp auth.AuthApp) {
 	authorized.POST("/tasks", svc.postTask)
 	authorized.PATCH("/tasks/:taskid", svc.patchTask)
 	authorized.DELETE("/tasks/:taskid", svc.deleteTask)
-	authorized.GET("/tasks/report1", svc.report1)
-	authorized.GET("/tasks/report2", svc.report2)
-	//authorized.POST("/tasks/report1", svc.report1)
-	//authorized.POST("/tasks/report1", svc.report1)
+
+	authorized.GET("/tasks/getTaskCounts", svc.getTaskCounts)
+	authorized.GET("/tasks/getTaskAverages", svc.getTaskAverages)
+	authorized.GET("/tasks/getOverDueTask", svc.getOverDueTask)
+	authorized.GET("/tasks/getMaxTaskCompletedDay", svc.getMaxTaskCompletedDay)
+	authorized.GET("/tasks/getOpenedTasksPerDay", svc.getOpenedTasksPerDay)
+
+	authorized.GET("/tasks/similar", svc.similarTasks)
 
 	authorized.POST("/attachment/:taskid", svc.attachFile)
 	authorized.GET("/attachment/:taskid", svc.downloadFile)

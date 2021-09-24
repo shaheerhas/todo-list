@@ -1,9 +1,5 @@
 package auth
 
-import (
-	"log"
-)
-
 func CreateBlackListToken(token BlackListToken) error {
 	result := Db.Create(&token)
 	if result.Error != nil {
@@ -15,7 +11,6 @@ func CreateBlackListToken(token BlackListToken) error {
 func IsBlackListed(token string) bool {
 	res := Db.First(&BlackListToken{}, "token_val = ?", token)
 	if res.Error != nil {
-		log.Println(res.Error)
 		return false
 	}
 	if res.RowsAffected < 1 {

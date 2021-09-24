@@ -2,14 +2,14 @@ package tasks
 
 import (
 	"fmt"
+	"github.com/gin-gonic/gin"
+	"github.com/shaheerhas/todo-list/app/utils"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
-
-	"github.com/gin-gonic/gin"
-	"github.com/shaheerhas/todo-list/app/utils"
+	"strings"
 )
 
 func getId(c *gin.Context) (uint, error) {
@@ -92,42 +92,6 @@ func (svc TaskApp) postTask(c *gin.Context) {
 	}
 	msg := "record created successfully"
 	c.JSON(utils.Response(http.StatusCreated, msg))
-}
-
-func (svc TaskApp) report1(c *gin.Context) {
-	userId, err := getId(c)
-	if err != nil {
-		log.Println(err)
-	}
-	counts, err := getTasksCount(svc, userId)
-	if err != nil {
-		log.Println(err)
-		msg := "couldn't generate report"
-		c.JSON(utils.Response(http.StatusInternalServerError, msg))
-	}
-
-	//msg := fmt.Sprintf("Report1:\nTotal Tasks:%v\nCompleted Tasks%v\nRemaining Tasks%v", counts.Total, counts.Completed, counts.Remaining)
-	c.JSON(http.StatusOK, counts)
-}
-
-func (svc TaskApp) report2(c *gin.Context) {
-	userId, err := getId(c)
-	if err != nil {
-		log.Println(err)
-	}
-	avgTasks, err := getTasksAverage(svc, userId)
-	if err != nil {
-		log.Println(err)
-		msg := "couldn't generate report"
-		c.JSON(utils.Response(http.StatusInternalServerError, msg))
-		return
-	}
-
-	c.JSON(http.StatusOK, avgTasks)
-}
-
-func (svc TaskApp) getTaskById(c *gin.Context) {
-
 }
 
 func (svc TaskApp) attachFile(c *gin.Context) {
@@ -284,4 +248,127 @@ func (svc TaskApp) deleteFile(c *gin.Context) {
 	msg = "file successfully deleted"
 	c.JSON(utils.Response(http.StatusOK, msg))
 
+}
+
+func (svc TaskApp) getTaskCounts(c *gin.Context) {
+	userId, err := getId(c)
+	if err != nil {
+		log.Println(err)
+	}
+	counts, err := getTasksCount(svc, userId)
+	if err != nil {
+		log.Println(err)
+		msg := "couldn't generate report"
+		c.JSON(utils.Response(http.StatusInternalServerError, msg))
+	}
+
+	c.JSON(http.StatusOK, counts)
+}
+
+func (svc TaskApp) getTaskAverages(c *gin.Context) {
+	userId, err := getId(c)
+	if err != nil {
+		log.Println(err)
+	}
+	avgTasks, err := getTasksAverage(svc, userId)
+	if err != nil {
+		log.Println(err)
+		msg := "couldn't generate report"
+		c.JSON(utils.Response(http.StatusInternalServerError, msg))
+		return
+	}
+
+	c.JSON(http.StatusOK, avgTasks)
+}
+
+func (svc TaskApp) getOverDueTask(c *gin.Context) {
+	userId, err := getId(c)
+	if err != nil {
+		log.Println(err)
+	}
+	countOverDueTasks, err := getOverDueTasks(svc, userId)
+	if err != nil {
+		log.Println(err)
+		msg := "couldn't generate report"
+		c.JSON(utils.Response(http.StatusInternalServerError, msg))
+		return
+	}
+
+	c.JSON(http.StatusOK, map[string]int64{"Over due Tasks:": countOverDueTasks})
+}
+
+func (svc TaskApp) getMaxTaskCompletedDay(c *gin.Context) {
+	userId, err := getId(c)
+	if err != nil {
+		log.Println(err)
+	}
+	mostCompletedTasksDay, err := getMaxTasksCompletedDay(svc, userId)
+	if err != nil {
+		log.Println(err)
+		msg := "couldn't generate report"
+		c.JSON(utils.Response(http.StatusInternalServerError, msg))
+		return
+	}
+
+	c.JSON(http.StatusOK, map[string]string{"Max Tasks Completed Date:": mostCompletedTasksDay})
+}
+
+func (svc TaskApp) getOpenedTasksPerDay(c *gin.Context) {
+	userId, err := getId(c)
+	if err != nil {
+		log.Println(err)
+	}
+	openedTasksPerDay, err := getOpenedTaskPerDay(svc, userId)
+	if err != nil {
+		log.Println(err)
+		msg := "couldn't generate report"
+		c.JSON(utils.Response(http.StatusInternalServerError, msg))
+		return
+	}
+
+	c.JSON(http.StatusOK, openedTasksPerDay)
+}
+
+func isSimilar(task1, task2 string) bool {
+	task2Splitted := strings.Split(task2, " ")
+	for _, word1 := range task2Splitted {
+		if !strings.Contains(task1, word1) {
+			return false
+		}
+	}
+	return true
+}
+
+func (svc TaskApp) similarTasks(c *gin.Context) {
+	userId, err := getId(c)
+	if err != nil {
+		log.Println(err)
+	}
+	var similar [][]Task
+	//	var taskDocs []string
+	tasks, err := allTasks(svc, userId)
+	for _, task1 := range tasks {
+		taskDoc1 := task1.Title + task1.Details
+		//taskDocs = append(taskDocs, taskDoc1)
+		//for i := 0; i < len(taskDocs); i++ {
+		for _, task2 := range tasks {
+			taskDoc2 := task2.Title + task2.Details
+			if len(taskDoc1) < len(taskDoc2) {
+				if isSimilar(taskDoc2, taskDoc1) {
+					var taskSlice []Task
+					taskSlice = append(taskSlice, task1)
+					taskSlice = append(taskSlice, task2)
+					similar = append(similar, taskSlice)
+				}
+			}
+
+		}
+	}
+
+	if len(similar) == 0 {
+		msg := "no similar tasks found"
+		c.JSON(utils.Response(http.StatusOK, msg))
+		return
+	}
+	c.JSON(http.StatusOK, similar)
 }

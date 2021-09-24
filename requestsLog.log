@@ -1,0 +1,27 @@
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /tasks                    --> github.com/shaheerhas/todo-list/app/tasks.TaskApp.getTasksList-fm (4 handlers)
+[GIN-debug] POST   /tasks                    --> github.com/shaheerhas/todo-list/app/tasks.TaskApp.postTask-fm (4 handlers)
+[GIN-debug] PATCH  /tasks/:taskid            --> github.com/shaheerhas/todo-list/app/tasks.TaskApp.patchTask-fm (4 handlers)
+[GIN-debug] DELETE /tasks/:taskid            --> github.com/shaheerhas/todo-list/app/tasks.TaskApp.deleteTask-fm (4 handlers)
+[GIN-debug] GET    /tasks/report1            --> github.com/shaheerhas/todo-list/app/tasks.TaskApp.report1-fm (4 handlers)
+[GIN-debug] GET    /tasks/report2            --> github.com/shaheerhas/todo-list/app/tasks.TaskApp.report2-fm (4 handlers)
+[GIN-debug] GET    /tasks/report3            --> github.com/shaheerhas/todo-list/app/tasks.TaskApp.report3-fm (4 handlers)
+[GIN-debug] GET    /tasks/report4            --> github.com/shaheerhas/todo-list/app/tasks.TaskApp.report4-fm (4 handlers)
+[GIN-debug] POST   /attachment/:taskid       --> github.com/shaheerhas/todo-list/app/tasks.TaskApp.attachFile-fm (4 handlers)
+[GIN-debug] GET    /attachment/:taskid       --> github.com/shaheerhas/todo-list/app/tasks.TaskApp.downloadFile-fm (4 handlers)
+[GIN-debug] DELETE /attachment/:taskid       --> github.com/shaheerhas/todo-list/app/tasks.TaskApp.deleteFile-fm (4 handlers)
+[GIN-debug] POST   /signup                   --> github.com/shaheerhas/todo-list/app/users.UserModelApp.signup-fm (3 handlers)
+[GIN-debug] POST   /login                    --> github.com/shaheerhas/todo-list/app/users.UserModelApp.login-fm (3 handlers)
+[GIN-debug] GET    /fblogin                  --> github.com/shaheerhas/todo-list/app/users.UserModelApp.fbLogin-fm (3 handlers)
+[GIN-debug] GET    /fbcallback               --> github.com/shaheerhas/todo-list/app/users.UserModelApp.fbCallBack-fm (3 handlers)
+[GIN-debug] POST   /confirm/:emailToken      --> github.com/shaheerhas/todo-list/app/users.UserModelApp.confirmUser-fm (3 handlers)
+[GIN-debug] POST   /forgotpassword           --> github.com/shaheerhas/todo-list/app/users.UserModelApp.forgotPassword-fm (3 handlers)
+[GIN-debug] POST   /resetpassword/:emailToken --> github.com/shaheerhas/todo-list/app/users.UserModelApp.resetPassword-fm (3 handlers)
+[GIN-debug] POST   /logout                   --> github.com/shaheerhas/todo-list/app/users.UserModelApp.logout-fm (4 handlers)
+[GIN-debug] Environment variable PORT is undefined. Using port :8080 by default
+[GIN-debug] Listening and serving HTTP on :8080

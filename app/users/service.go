@@ -19,7 +19,36 @@ import (
 var oauthConf *oauth2.Config
 var oauthStateString string
 
+func isUserLoggedIn(c *gin.Context) bool {
+	accessToken, _ := c.Cookie("accessToken")
+	//check if user is already logged in //dos
+	_, validErr := auth.ValidateJWTToken(accessToken)
+	if accessToken != "" && validErr == nil && !auth.IsBlackListed(accessToken) {
+		return true
+	}
+	return false
+}
+
+func initOAuth() {
+	oauthStateString = os.Getenv("FB_STATE_STRING")
+	oauthConf = &oauth2.Config{
+		ClientID:     os.Getenv("FB_APP_ID"),
+		ClientSecret: os.Getenv("FB_CLIENT_SECRET"),
+		RedirectURL:  os.Getenv("FB_CALLBACK_URL"),
+		Scopes:       []string{"public_profile", "email"},
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://www.facebook.com/v12.0/dialog/oauth",
+			TokenURL: "https://graph.facebook.com/v12.0/oauth/access_token",
+		},
+	}
+}
+
 func (svc UserModelApp) login(c *gin.Context) {
+	if isUserLoggedIn(c) {
+		msg := "user already logged in"
+		c.JSON(utils.Response(http.StatusOK, msg))
+		return
+	}
 	var user UserModel
 	if err := c.BindJSON(&user); err != nil {
 		log.Println(err)
@@ -29,20 +58,26 @@ func (svc UserModelApp) login(c *gin.Context) {
 	}
 
 	loginUser, err := getUser(svc, user.Email)
-	if !loginUser.IsVerified {
-		log.Println("user not verified yet")
-		msg := "please verify your email first"
-		c.JSON(utils.Response(http.StatusForbidden, msg))
-		return
-	}
 	if err != nil {
 		log.Println(err)
 		msg := "user with this email not found"
 		c.JSON(utils.Response(http.StatusNotFound, msg))
 		return
 	}
-	verified := utils.CheckPasswordHash(user.Password, loginUser.Password)
-	if !verified {
+	if loginUser.FbUser {
+		log.Println("fb user")
+		msg := "wrong credentials user registered as an fb user"
+		c.JSON(utils.Response(http.StatusBadRequest, msg))
+		return
+	}
+	if !loginUser.IsVerified {
+		log.Println("user not verified yet")
+		msg := "please verify your email first"
+		c.JSON(utils.Response(http.StatusForbidden, msg))
+		return
+	}
+
+	if verified := utils.CheckPasswordHash(user.Password, loginUser.Password); !verified {
 		msg := "incorrect password"
 		c.JSON(utils.Response(http.StatusForbidden, msg))
 		return
@@ -60,21 +95,13 @@ func (svc UserModelApp) login(c *gin.Context) {
 
 }
 
-func initOAuth() {
-	oauthStateString = os.Getenv("FB_STATE_STRING")
-	oauthConf = &oauth2.Config{
-		ClientID:     os.Getenv("FB_APP_ID"),
-		ClientSecret: os.Getenv("FB_CLIENT_SECRET"),
-		RedirectURL:  os.Getenv("FB_CALLBACK_URL"),
-		Scopes:       []string{"public_profile", "email"},
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  "https://www.facebook.com/v12.0/dialog/oauth",
-			TokenURL: "https://graph.facebook.com/v12.0/oauth/access_token",
-		},
-	}
-}
-
 func (svc UserModelApp) fbLogin(c *gin.Context) {
+
+	if isUserLoggedIn(c) {
+		msg := "user already logged in"
+		c.JSON(utils.Response(http.StatusOK, msg))
+		return
+	}
 	initOAuth()
 	URL := oauthConf.AuthCodeURL(oauthStateString)
 	log.Println(URL)
@@ -269,6 +296,16 @@ func (svc UserModelApp) forgotPassword(c *gin.Context) {
 		log.Println(err)
 		msg := "user with this email not found"
 		c.JSON(utils.Response(http.StatusNotFound, msg))
+		return
+	}
+	if user.FbUser {
+		msg := "user is registered as a fb user"
+		c.JSON(utils.Response(http.StatusBadRequest, msg))
+		return
+	}
+	if !user.IsVerified {
+		msg := "verify your account first"
+		c.JSON(utils.Response(http.StatusConflict, msg))
 		return
 	}
 

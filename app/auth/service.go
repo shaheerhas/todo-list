@@ -18,7 +18,7 @@ func GenerateJWTToken(id uint, email string) (string, error) {
 	authClaims := jwt.MapClaims{}
 	authClaims["email"] = email
 	authClaims["id"] = id
-	authClaims["exp"] = time.Now().Add(time.Minute * 60).Unix()
+	authClaims["exp"] = time.Now().Add(time.Minute * 15).Unix()
 
 	auth := jwt.NewWithClaims(jwt.SigningMethodHS256, authClaims)
 	token, err := auth.SignedString([]byte(secretKey))

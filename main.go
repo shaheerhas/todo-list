@@ -36,6 +36,7 @@ func setupDb() (*gorm.DB, error) {
 	}
 	return db, nil
 }
+
 func start() {
 	db, err := setupDb()
 	if err != nil {
@@ -47,13 +48,13 @@ func start() {
 	authApp := auth.AuthApp{Db: db}
 	authApp.InitBlackListModel()
 
-	taskApp := tasks.TaskApp{Db: db}
-	tasks.Route(router, taskApp, authApp)
-	taskApp.InitTaskDb()
-
 	userApp := users.UserModelApp{Db: db}
 	users.Route(router, userApp, authApp)
 	userApp.InitUserModelDB()
+
+	taskApp := tasks.TaskApp{Db: db}
+	tasks.Route(router, taskApp, authApp)
+	taskApp.InitTaskDb()
 
 	err = router.Run()
 	if err != nil {
@@ -61,6 +62,12 @@ func start() {
 		return
 	}
 }
+
 func main() {
+	//gin.DisableConsoleColor()
+	//f, _ := os.Create("requestsLog.log")
+	//gin.DefaultWriter = f
+	//gin.LoggerWithWriter(f)
+
 	start()
 }
