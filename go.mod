@@ -7,6 +7,7 @@ require (
 	github.com/go-co-op/gocron v1.9.0
 	github.com/golang-jwt/jwt/v4 v4.0.0
 	github.com/joho/godotenv v1.3.0
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
 	golang.org/x/oauth2 v0.0.0-20190226205417-e64efc72b421
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df

@@ -1,10 +1,11 @@
 package tasks
 
 import (
+	"github.com/gin-gonic/gin"
+	"github.com/patrickmn/go-cache"
+	"gorm.io/gorm"
 	"log"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type Task struct {
@@ -20,6 +21,14 @@ type Task struct {
 }
 type TaskApp struct {
 	Db *gorm.DB
+}
+
+var cachey *cache.Cache
+
+type TaskCache struct {
+	gin.ResponseWriter
+	cache         *cache.Cache
+	requestString string
 }
 
 type TaskCount struct {

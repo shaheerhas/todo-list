@@ -3,6 +3,7 @@ package tasks
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/patrickmn/go-cache"
 	"github.com/shaheerhas/todo-list/app/utils"
 	"io"
 	"log"
@@ -291,11 +292,45 @@ func (svc TaskApp) deleteFile(c *gin.Context) {
 
 }
 
+func (svc TaskCache) Write(b []byte) (int, error) {
+	status := svc.Status()
+	if 200 <= status && status <= 299 {
+		svc.cache.Set(svc.requestString, b, cache.DefaultExpiration)
+	}
+	return svc.ResponseWriter.Write(b)
+}
+
+func CacheCheck(c *gin.Context) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Get the ignoreCache parameter
+		ignoreCache := strings.ToLower(c.Query("ignoreCache")) == "true"
+
+		userId, _ := getId(c)
+		userID := strconv.Itoa(int(userId))
+		// See if we have a cached response
+		response, exists := cachey.Get(c.Request.RequestURI + userID)
+
+		if !ignoreCache && exists {
+			// If so, use it
+			log.Println("cache exists")
+			c.Data(http.StatusOK, "application/json", response.([]byte))
+			c.Abort()
+		} else {
+			// If not, pass our cache writer to the next middleware
+
+			bcw := &TaskCache{cache: cachey, requestString: c.Request.RequestURI + userID, ResponseWriter: c.Writer}
+			c.Writer = bcw
+			c.Next()
+		}
+	}
+}
+
 func (svc TaskApp) getTaskCounts(c *gin.Context) {
 	userId, err := getId(c)
 	if err != nil {
 		log.Println(err)
 	}
+
 	counts, err := getTasksCount(svc, userId)
 	if err != nil {
 		log.Println(err)
@@ -373,7 +408,6 @@ func (svc TaskApp) getOpenedTasksPerDay(c *gin.Context) {
 func (svc TaskApp) similarTasks(c *gin.Context) {
 	userId, _ := getId(c)
 	tasks, _ := allTasks(svc, userId)
-	fmt.Println(tasks)
 	similar := findSimilarTasks(tasks)
 	if len(similar) == 0 {
 		msg := "no similar tasks found"

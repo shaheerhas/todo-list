@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -26,7 +27,6 @@ func init() {
 
 }
 
-// create a struct for db
 func setupDb() (*gorm.DB, error) {
 	var dbName = os.Getenv("DB_NAME")
 	var password = os.Getenv("DB_PASSWORD")
@@ -84,6 +84,8 @@ func start() {
 }
 
 func main() {
+	gin.SetMode(gin.ReleaseMode)
+	myFile, _ := os.Create("requestLogs.log")
+	gin.DefaultWriter = io.MultiWriter(os.Stdout, myFile)
 	start()
-
 }
