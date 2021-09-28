@@ -12,6 +12,47 @@ import (
 	"strings"
 )
 
+func isSimilar(task1, task2 string) bool {
+	task2Splitted := strings.Split(task2, " ")
+	for i, s1 := range task2Splitted {
+		if !strings.Contains(task1, s1) {
+			return false
+		} else {
+			// to cater duplicate words
+			end := len(task2Splitted) - 1
+			if end >= 0 && i < len(task2Splitted) {
+				task2Splitted[end], task2Splitted[i] = task2Splitted[i], task2Splitted[end]
+				task2Splitted = task2Splitted[:end]
+			}
+		}
+	}
+	return true
+}
+
+func findSimilarTasks(docs []Task) [][]Task {
+	var similar [][]Task
+	for i := 0; i < len(docs); i++ {
+		task1 := docs[i].Title + " " + docs[i].Details
+		for j := i + 1; j < len(docs); j++ {
+			if i == j {
+				continue
+			}
+			task2 := docs[j].Title + " " + docs[j].Details
+			if len(task1) < len(task2) {
+				if isSimilar(task2, task1) {
+					var taskSlice []Task
+					t1 := docs[i]
+					t2 := docs[j]
+					taskSlice = append(taskSlice, t1)
+					taskSlice = append(taskSlice, t2)
+					similar = append(similar, taskSlice)
+				}
+			}
+		}
+	}
+	return similar
+}
+
 func getId(c *gin.Context) (uint, error) {
 	id, exists := c.Get("userId")
 
@@ -327,47 +368,6 @@ func (svc TaskApp) getOpenedTasksPerDay(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, openedTasksPerDay)
-}
-
-func isSimilar(task1, task2 string) bool {
-	task2Splitted := strings.Split(task2, " ")
-	for i, s1 := range task2Splitted {
-		if !strings.Contains(task1, s1) {
-			return false
-		} else {
-			// to cater duplicate words
-			end := len(task2Splitted) - 1
-			if end >= 0 && i < len(task2Splitted) {
-				task2Splitted[end], task2Splitted[i] = task2Splitted[i], task2Splitted[end]
-				task2Splitted = task2Splitted[:end]
-			}
-		}
-	}
-	return true
-}
-
-func findSimilarTasks(docs []Task) [][]Task {
-	var similar [][]Task
-	for i := 0; i < len(docs); i++ {
-		task1 := docs[i].Title + " " + docs[i].Details
-		for j := i + 1; j < len(docs); j++ {
-			if i == j {
-				continue
-			}
-			task2 := docs[j].Title + " " + docs[j].Details
-			if len(task1) < len(task2) {
-				if isSimilar(task2, task1) {
-					var taskSlice []Task
-					t1 := docs[i]
-					t2 := docs[j]
-					taskSlice = append(taskSlice, t1)
-					taskSlice = append(taskSlice, t2)
-					similar = append(similar, taskSlice)
-				}
-			}
-		}
-	}
-	return similar
 }
 
 func (svc TaskApp) similarTasks(c *gin.Context) {

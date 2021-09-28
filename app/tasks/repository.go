@@ -7,12 +7,6 @@ import (
 	"time"
 )
 
-type NoTasks struct{}
-
-func (m *NoTasks) Error() string {
-	return "no tasks in db"
-}
-
 func createTask(svc TaskApp, task Task) error {
 
 	result := svc.Db.Create(&task)
@@ -49,7 +43,7 @@ func getTaskById(svc TaskApp, id, userId int) (Task, error) {
 	}
 	if task.ID == 0 {
 
-		return task, &NoTasks{}
+		return task, gorm.ErrRecordNotFound
 	}
 	return task, nil
 
@@ -84,7 +78,7 @@ func allTasks(svc TaskApp, id uint) ([]Task, error) {
 		return nil, err
 	}
 	if len(tasks) == 0 {
-		return nil, &NoTasks{}
+		return nil, gorm.ErrRecordNotFound
 	}
 	return tasks, nil
 
@@ -164,4 +158,11 @@ func getOpenedTaskPerDay(svc TaskApp, userId uint) ([]map[string]interface{}, er
 		"user_id", userId).Group("day").Scan(&openedTasksPerDay)
 	log.Println(openedTasksPerDay)
 	return openedTasksPerDay, err.Error
+}
+
+func FindDueTodayTasks(db *gorm.DB, userId uint) ([]Task, error) {
+	var tasks []Task
+	err := db.Table("tasks").Select("*").Where("due_time > current_date + interval '24 hours'").Where("user_id", userId).Where("status", false).Scan(&tasks).Error
+	fmt.Println(tasks)
+	return tasks, err
 }

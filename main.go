@@ -2,12 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/shaheerhas/todo-list/app/auth"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/go-co-op/gocron"
 	"log"
 	"os"
 
-	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/shaheerhas/todo-list/app/auth"
 	"github.com/shaheerhas/todo-list/app/tasks"
 	"github.com/shaheerhas/todo-list/app/users"
 	"gorm.io/driver/postgres"
@@ -37,6 +40,17 @@ func setupDb() (*gorm.DB, error) {
 	return db, nil
 }
 
+var scheduler *gocron.Scheduler
+
+func scheduleEmail(userApp users.UserModelApp) {
+	scheduler = gocron.NewScheduler(time.Now().Location())
+	err, _ := scheduler.Every(1).Day().At("00:00").Do(userApp.SendReminderEmails)
+	if err != nil {
+		log.Println(err)
+	}
+	scheduler.StartAsync()
+}
+
 func start() {
 	db, err := setupDb()
 	if err != nil {
@@ -51,6 +65,11 @@ func start() {
 	userApp := users.UserModelApp{Db: db}
 	users.Route(router, userApp, authApp)
 	userApp.InitUserModelDB()
+	scheduleEmail(userApp)
+
+	if err != nil {
+		log.Println(err)
+	}
 
 	taskApp := tasks.TaskApp{Db: db}
 	tasks.Route(router, taskApp, authApp)
@@ -61,13 +80,10 @@ func start() {
 		log.Println(err)
 		return
 	}
+
 }
 
 func main() {
-	//gin.DisableConsoleColor()
-	//f, _ := os.Create("requestsLog.log")
-	//gin.DefaultWriter = f
-	//gin.LoggerWithWriter(f)
-
 	start()
+
 }

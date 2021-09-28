@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/shaheerhas/todo-list/app/auth"
+	"github.com/shaheerhas/todo-list/app/tasks"
 	"github.com/shaheerhas/todo-list/app/utils"
 	"golang.org/x/oauth2"
-	"gopkg.in/gomail.v2"
 	"log"
 	"net/http"
 	"net/url"
@@ -216,24 +216,6 @@ func (svc UserModelApp) logout(c *gin.Context) {
 	c.JSON(utils.Response(http.StatusOK, msg))
 }
 
-func sendEmail(user UserModel, body, subject string) error {
-	var senderEmail = os.Getenv("SENDER_EMAIL")
-	var senderPassword = os.Getenv("SENDER_PASSWORD")
-	msg := gomail.NewMessage()
-	msg.SetHeader("From", senderEmail)
-	fmt.Println(senderEmail)
-	msg.SetHeader("To", user.Email)
-	msg.SetHeader("Subject", subject)
-
-	msg.SetBody("text/html", body)
-	d := gomail.NewDialer("smtp.gmail.com", 587, senderEmail, senderPassword)
-
-	if err := d.DialAndSend(msg); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (svc UserModelApp) signup(c *gin.Context) {
 	var user UserModel
 	if err := c.BindJSON(&user); err != nil {
@@ -270,7 +252,7 @@ func (svc UserModelApp) signup(c *gin.Context) {
 	var confirmationUrl = os.Getenv("CONFIRMATION_URL")
 	body := "Hi, click this link below to confirm your Todo-list Account\n"
 	body += confirmationUrl + "/" + utils.Encode(user.Email, user.ID)
-	err = sendEmail(user, body, "Todo-list Account Confirmation")
+	err = utils.SendEmail(user.Email, body, "Todo-list Account Confirmation")
 	if err != nil {
 		log.Println(err)
 		msg := "couldn't send email"
@@ -314,7 +296,7 @@ func (svc UserModelApp) forgotPassword(c *gin.Context) {
 	body := "Hi, " + user.FirstName + ", we got a request from your account to reset your password."
 	body += "\nClick the link  below to reset your account, or just ignore this email if you didn't request resetting your password.\n"
 	body += "\n\r\n" + resetPasswordLink + "/" + utils.Encode(user.Email, user.ID)
-	err = sendEmail(user, body, subject)
+	err = utils.SendEmail(user.Email, body, subject)
 	if err != nil {
 		log.Println(err)
 		msg := "couldn't send email"
@@ -430,4 +412,29 @@ func (svc UserModelApp) confirmUser(c *gin.Context) {
 	msg := "user confirmed!"
 	c.JSON(utils.Response(http.StatusOK, msg))
 
+}
+
+func (svc UserModelApp) SendReminderEmails() {
+	allUsers, err := AllUsers(svc.Db)
+	if err != nil {
+		log.Println(err)
+	}
+	for _, user := range allUsers {
+		todayTasks, err := tasks.FindDueTodayTasks(svc.Db, user.ID)
+		if err != nil {
+			log.Println(err)
+		}
+		if len(todayTasks) > 0 {
+			subject := "Task Due Reminder Email"
+			body := "Hey" + " " + user.FirstName
+			body += "\n This is to remind you that you have the following tasks due for today!\n"
+			for _, task := range todayTasks {
+				body += task.Title + "\n"
+			}
+			err = utils.SendEmail(user.Email, body, subject)
+			if err != nil {
+				log.Println(err)
+			}
+		}
+	}
 }
