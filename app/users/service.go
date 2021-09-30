@@ -5,21 +5,53 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/shaheerhas/todo-list/app/auth"
+	"github.com/shaheerhas/todo-list/app/tasks"
 	"github.com/shaheerhas/todo-list/app/utils"
 	"golang.org/x/oauth2"
-	"gopkg.in/gomail.v2"
+	"gorm.io/gorm"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 var oauthConf *oauth2.Config
 var oauthStateString string
 
+func isUserLoggedIn(c *gin.Context) bool {
+	accessToken, _ := c.Cookie("accessToken")
+	//check if user is already logged in //dos
+	_, validErr := auth.ValidateJWTToken(accessToken)
+	if accessToken != "" && validErr == nil && !auth.IsBlackListed(accessToken) {
+		return true
+	}
+	return false
+}
+
+func initOAuth() {
+	oauthStateString = os.Getenv("FB_STATE_STRING")
+	oauthConf = &oauth2.Config{
+		ClientID:     os.Getenv("FB_APP_ID"),
+		ClientSecret: os.Getenv("FB_CLIENT_SECRET"),
+		RedirectURL:  os.Getenv("FB_CALLBACK_URL"),
+		Scopes:       []string{"public_profile", "email"},
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://www.facebook.com/v12.0/dialog/oauth",
+			TokenURL: "https://graph.facebook.com/v12.0/oauth/access_token",
+		},
+	}
+}
+
 func (svc UserModelApp) login(c *gin.Context) {
+	if isUserLoggedIn(c) {
+		msg := "user already logged in"
+		c.JSON(utils.Response(http.StatusOK, msg))
+		return
+	}
 	var user UserModel
 	if err := c.BindJSON(&user); err != nil {
 		log.Println(err)
@@ -29,20 +61,26 @@ func (svc UserModelApp) login(c *gin.Context) {
 	}
 
 	loginUser, err := getUser(svc, user.Email)
-	if !loginUser.IsVerified {
-		log.Println("user not verified yet")
-		msg := "please verify your email first"
-		c.JSON(utils.Response(http.StatusForbidden, msg))
-		return
-	}
 	if err != nil {
 		log.Println(err)
 		msg := "user with this email not found"
 		c.JSON(utils.Response(http.StatusNotFound, msg))
 		return
 	}
-	verified := utils.CheckPasswordHash(user.Password, loginUser.Password)
-	if !verified {
+	if loginUser.FbUser {
+		log.Println("fb user")
+		msg := "wrong credentials user registered as an fb user"
+		c.JSON(utils.Response(http.StatusBadRequest, msg))
+		return
+	}
+	if !loginUser.IsVerified {
+		log.Println("user not verified yet")
+		msg := "please verify your email first"
+		c.JSON(utils.Response(http.StatusForbidden, msg))
+		return
+	}
+
+	if verified := utils.CheckPasswordHash(user.Password, loginUser.Password); !verified {
 		msg := "incorrect password"
 		c.JSON(utils.Response(http.StatusForbidden, msg))
 		return
@@ -60,21 +98,13 @@ func (svc UserModelApp) login(c *gin.Context) {
 
 }
 
-func initOAuth() {
-	oauthStateString = os.Getenv("FB_STATE_STRING")
-	oauthConf = &oauth2.Config{
-		ClientID:     os.Getenv("FB_APP_ID"),
-		ClientSecret: os.Getenv("FB_CLIENT_SECRET"),
-		RedirectURL:  os.Getenv("FB_CALLBACK_URL"),
-		Scopes:       []string{"public_profile", "email"},
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  "https://www.facebook.com/v12.0/dialog/oauth",
-			TokenURL: "https://graph.facebook.com/v12.0/oauth/access_token",
-		},
-	}
-}
-
 func (svc UserModelApp) fbLogin(c *gin.Context) {
+
+	if isUserLoggedIn(c) {
+		msg := "user already logged in"
+		c.JSON(utils.Response(http.StatusOK, msg))
+		return
+	}
 	initOAuth()
 	URL := oauthConf.AuthCodeURL(oauthStateString)
 	log.Println(URL)
@@ -189,24 +219,6 @@ func (svc UserModelApp) logout(c *gin.Context) {
 	c.JSON(utils.Response(http.StatusOK, msg))
 }
 
-func sendEmail(user UserModel, body, subject string) error {
-	var senderEmail = os.Getenv("SENDER_EMAIL")
-	var senderPassword = os.Getenv("SENDER_PASSWORD")
-	msg := gomail.NewMessage()
-	msg.SetHeader("From", senderEmail)
-	fmt.Println(senderEmail)
-	msg.SetHeader("To", user.Email)
-	msg.SetHeader("Subject", subject)
-
-	msg.SetBody("text/html", body)
-	d := gomail.NewDialer("smtp.gmail.com", 587, senderEmail, senderPassword)
-
-	if err := d.DialAndSend(msg); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (svc UserModelApp) signup(c *gin.Context) {
 	var user UserModel
 	if err := c.BindJSON(&user); err != nil {
@@ -243,7 +255,7 @@ func (svc UserModelApp) signup(c *gin.Context) {
 	var confirmationUrl = os.Getenv("CONFIRMATION_URL")
 	body := "Hi, click this link below to confirm your Todo-list Account\n"
 	body += confirmationUrl + "/" + utils.Encode(user.Email, user.ID)
-	err = sendEmail(user, body, "Todo-list Account Confirmation")
+	err = utils.SendEmail(user.Email, body, "Todo-list Account Confirmation")
 	if err != nil {
 		log.Println(err)
 		msg := "couldn't send email"
@@ -271,13 +283,23 @@ func (svc UserModelApp) forgotPassword(c *gin.Context) {
 		c.JSON(utils.Response(http.StatusNotFound, msg))
 		return
 	}
+	if user.FbUser {
+		msg := "user is registered as a fb user"
+		c.JSON(utils.Response(http.StatusBadRequest, msg))
+		return
+	}
+	if !user.IsVerified {
+		msg := "verify your account first"
+		c.JSON(utils.Response(http.StatusConflict, msg))
+		return
+	}
 
 	resetPasswordLink := os.Getenv("RESET_PASSWORD")
 	subject := "Password Reset Request for Todo-List App"
 	body := "Hi, " + user.FirstName + ", we got a request from your account to reset your password."
 	body += "\nClick the link  below to reset your account, or just ignore this email if you didn't request resetting your password.\n"
 	body += "\n\r\n" + resetPasswordLink + "/" + utils.Encode(user.Email, user.ID)
-	err = sendEmail(user, body, subject)
+	err = utils.SendEmail(user.Email, body, subject)
 	if err != nil {
 		log.Println(err)
 		msg := "couldn't send email"
@@ -393,4 +415,63 @@ func (svc UserModelApp) confirmUser(c *gin.Context) {
 	msg := "user confirmed!"
 	c.JSON(utils.Response(http.StatusOK, msg))
 
+}
+
+func sendEmailThread(wg *sync.WaitGroup, user UserModel, todayTasks []tasks.Task) {
+
+	subject := "Task Due Reminder Email"
+	body := "Hey" + " " + user.FirstName
+	body += "\n This is to remind you that you have the following tasks due for today!\n"
+	for _, task := range todayTasks {
+		body += task.Title + "\n"
+	}
+	err := utils.SendEmail(user.Email, body, subject)
+	if err != nil {
+		log.Println(err)
+	}
+	wg.Done()
+}
+
+//, todayTasks []tasks.Task
+func sendEmailAndDBThread(wg *sync.WaitGroup, user UserModel, db *gorm.DB) {
+	todayTasks, err := tasks.FindDueTodayTasks(db, user.ID)
+	if err != nil {
+		log.Println(err)
+	}
+	if len(todayTasks) > 0 {
+		subject := "Task Due Reminder Email"
+		body := "Hey" + " " + user.FirstName
+		body += "\n This is to remind you that you have the following tasks due for today!\n"
+		for _, task := range todayTasks {
+			body += task.Title + "\n"
+		}
+		err = utils.SendEmail(user.Email, body, subject)
+		if err != nil {
+			log.Println(err)
+		}
+		time.Sleep(1)
+		wg.Done()
+	}
+}
+func (svc UserModelApp) SendReminderEmails() {
+	time1 := time.Now().UnixMicro()
+	allUsers, err := AllUsers(svc.Db)
+	var wg sync.WaitGroup
+	if err != nil {
+		log.Println(err)
+	}
+	for _, user := range allUsers {
+		wg.Add(1)
+		todayTasks, err := tasks.FindDueTodayTasks(svc.Db, user.ID)
+		if err != nil {
+			log.Println(err)
+		}
+		if len(todayTasks) > 0 {
+			//sendEmailThread(&wg, user, svc.Db)
+			sendEmailThread(&wg, user, todayTasks)
+		}
+	}
+
+	defer fmt.Println("time taken", time.Now().UnixMicro()-time1)
+	wg.Wait()
 }

@@ -2,16 +2,18 @@ package users
 
 import (
 	"fmt"
+	"gorm.io/gorm"
 )
 
-func allUsers(svc UserModelApp, users *[]UserModel) error {
-	if err := svc.Db.Find(&users).Error; err != nil {
-		return err
+func AllUsers(db *gorm.DB) ([]UserModel, error) {
+	var users []UserModel
+	if err := db.Find(&users).Error; err != nil {
+		return users, err
 	}
-	if len(*users) == 0 {
-		return fmt.Errorf("no users in db")
+	if len(users) == 0 {
+		return users, gorm.ErrRecordNotFound
 	}
-	return nil
+	return users, nil
 }
 
 func updateStatus(svc UserModelApp, userId uint, status bool) error {

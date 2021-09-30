@@ -13,10 +13,26 @@ func Route(router *gin.Engine, svc TaskApp, authApp auth.AuthApp) {
 	authorized.POST("/tasks", svc.postTask)
 	authorized.PATCH("/tasks/:taskid", svc.patchTask)
 	authorized.DELETE("/tasks/:taskid", svc.deleteTask)
-	authorized.GET("/tasks/report1", svc.report1)
-	authorized.GET("/tasks/report2", svc.report2)
-	//authorized.POST("/tasks/report1", svc.report1)
-	//authorized.POST("/tasks/report1", svc.report1)
+
+	//cached := authorized.Use(CacheCheckMiddleware(&gin.Context{}))
+	//
+	//cached.GET("/tasks/getTaskCounts", svc.getTaskCounts)
+	//cached.GET("/tasks/getTaskAverages", svc.getTaskAverages)
+	//cached.GET("/tasks/getOverDueTask", svc.getOverDueTask)
+	//cached.GET("/tasks/getMaxTaskCompletedDay", svc.getMaxTaskCompletedDay)
+	//cached.GET("/tasks/getOpenedTasksPerDay", svc.getOpenedTasksPerDay)
+	//
+	//cached.GET("/tasks/similar", svc.similarTasks)
+	//
+	//cached := authorized.Use(CacheCheckMiddleware(&gin.Context{}))
+
+	authorized.GET("/tasks/getTaskCounts", svc.getTaskCounts)
+	authorized.GET("/tasks/getTaskAverages", svc.getTaskAverages)
+	authorized.GET("/tasks/getOverDueTask", svc.getOverDueTask)
+	authorized.GET("/tasks/getMaxTaskCompletedDay", svc.getMaxTaskCompletedDay)
+	authorized.GET("/tasks/getOpenedTasksPerDay", svc.getOpenedTasksPerDay)
+
+	authorized.GET("/tasks/similar", svc.similarTasks)
 
 	authorized.POST("/attachment/:taskid", svc.attachFile)
 	authorized.GET("/attachment/:taskid", svc.downloadFile)

@@ -3,3 +3,5 @@ requests.txt
 .env
 .idea
 main
+/requestLogs.log
+benchmark.txt
