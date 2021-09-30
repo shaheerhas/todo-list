@@ -8,12 +8,15 @@ import (
 	"github.com/shaheerhas/todo-list/app/tasks"
 	"github.com/shaheerhas/todo-list/app/utils"
 	"golang.org/x/oauth2"
+	"gorm.io/gorm"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 var oauthConf *oauth2.Config
@@ -414,27 +417,61 @@ func (svc UserModelApp) confirmUser(c *gin.Context) {
 
 }
 
+func sendEmailThread(wg *sync.WaitGroup, user UserModel, todayTasks []tasks.Task) {
+
+	subject := "Task Due Reminder Email"
+	body := "Hey" + " " + user.FirstName
+	body += "\n This is to remind you that you have the following tasks due for today!\n"
+	for _, task := range todayTasks {
+		body += task.Title + "\n"
+	}
+	err := utils.SendEmail(user.Email, body, subject)
+	if err != nil {
+		log.Println(err)
+	}
+	wg.Done()
+}
+
+//, todayTasks []tasks.Task
+func sendEmailAndDBThread(wg *sync.WaitGroup, user UserModel, db *gorm.DB) {
+	todayTasks, err := tasks.FindDueTodayTasks(db, user.ID)
+	if err != nil {
+		log.Println(err)
+	}
+	if len(todayTasks) > 0 {
+		subject := "Task Due Reminder Email"
+		body := "Hey" + " " + user.FirstName
+		body += "\n This is to remind you that you have the following tasks due for today!\n"
+		for _, task := range todayTasks {
+			body += task.Title + "\n"
+		}
+		err = utils.SendEmail(user.Email, body, subject)
+		if err != nil {
+			log.Println(err)
+		}
+		time.Sleep(1)
+		wg.Done()
+	}
+}
 func (svc UserModelApp) SendReminderEmails() {
+	time1 := time.Now().UnixMicro()
 	allUsers, err := AllUsers(svc.Db)
+	var wg sync.WaitGroup
 	if err != nil {
 		log.Println(err)
 	}
 	for _, user := range allUsers {
+		wg.Add(1)
 		todayTasks, err := tasks.FindDueTodayTasks(svc.Db, user.ID)
 		if err != nil {
 			log.Println(err)
 		}
 		if len(todayTasks) > 0 {
-			subject := "Task Due Reminder Email"
-			body := "Hey" + " " + user.FirstName
-			body += "\n This is to remind you that you have the following tasks due for today!\n"
-			for _, task := range todayTasks {
-				body += task.Title + "\n"
-			}
-			err = utils.SendEmail(user.Email, body, subject)
-			if err != nil {
-				log.Println(err)
-			}
+			//sendEmailThread(&wg, user, svc.Db)
+			sendEmailThread(&wg, user, todayTasks)
 		}
 	}
+
+	defer fmt.Println("time taken", time.Now().UnixMicro()-time1)
+	wg.Wait()
 }

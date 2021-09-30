@@ -1,11 +1,22 @@
 package tasks
 
 import (
+	"errors"
 	"fmt"
 	"gorm.io/gorm"
 	"log"
 	"time"
 )
+
+func (t Task) BeforeCreate(tx *gorm.DB) (err error) {
+	var count int64
+	tx.Table("tasks").Where("user_id = ?", userId).Count(&count)
+	log.Println("before create")
+	if count > 50 {
+		err = errors.New("user task count exceeds 50")
+	}
+	return
+}
 
 func createTask(svc TaskApp, task Task) error {
 
@@ -18,10 +29,13 @@ func createTask(svc TaskApp, task Task) error {
 
 func updateTask(svc TaskApp, updatedTask map[string]interface{}) error {
 	var task Task
-	if updatedTask["status"].(bool) { // task is completed
-		updatedTask["completion_time"] = time.Now() // set completion time to now
-	} else {
-		updatedTask["completion_time"] = time.Time{}
+	_, exists := updatedTask["status"]
+	if exists {
+		if updatedTask["status"].(bool) { // task is completed
+			updatedTask["completion_time"] = time.Now() // set completion time to now
+		} else {
+			updatedTask["completion_time"] = time.Time{}
+		}
 	}
 	fmt.Println(updatedTask)
 	if err := svc.Db.Where("id = ?", updatedTask["id"]).Where("user_id = ?", updatedTask["user_id"]).First(&task).Error; err != nil {
@@ -49,8 +63,7 @@ func getTaskById(svc TaskApp, id, userId int) (Task, error) {
 
 }
 
-func checkUserTask(svc TaskApp, userId, taskId uint) error {
-	fmt.Println("db", userId, taskId)
+func taskExists(svc TaskApp, userId, taskId uint) error {
 	result := svc.Db.Where("id = ? AND user_id = ?", taskId, userId).Find(&Task{})
 	if result.RowsAffected < 1 {
 		return gorm.ErrRecordNotFound
@@ -115,6 +128,7 @@ func getTasksCount(svc TaskApp, userId uint) (TaskCount, error) {
 	}
 
 	err = svc.Db.Model(&Task{}).Where("user_id = ?", userId).Where("status = ?", true).Count(&completedTasks)
+	log.Println(completedTasks)
 	taskCount := TaskCount{
 		Total:     totalTasks,
 		Completed: completedTasks,
@@ -162,7 +176,7 @@ func getOpenedTaskPerDay(svc TaskApp, userId uint) ([]map[string]interface{}, er
 
 func FindDueTodayTasks(db *gorm.DB, userId uint) ([]Task, error) {
 	var tasks []Task
-	err := db.Table("tasks").Select("*").Where("due_time > current_date + interval '24 hours'").Where("user_id", userId).Where("status", false).Scan(&tasks).Error
-	fmt.Println(tasks)
+	err := db.Table("tasks").Select("*").Where("due_time > current_date and due_time < current_date + interval '1 day'").Where("user_id"+
+		"", userId).Where("status", false).Scan(&tasks).Error
 	return tasks, err
 }

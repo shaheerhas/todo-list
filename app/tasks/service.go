@@ -11,7 +11,12 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
+
+func init() {
+	cachey = cache.New(15*time.Minute, 20*time.Minute)
+}
 
 func isSimilar(task1, task2 string) bool {
 	task2Splitted := strings.Split(task2, " ")
@@ -96,10 +101,10 @@ func (svc TaskApp) patchTask(c *gin.Context) {
 	}
 	taskId := utils.ConvertInterfaceToUint(c.Param("taskid"))
 	reqBody["id"] = taskId
-	if err := checkUserTask(svc, utils.ConvertInterfaceToUint(reqBody["user_id"]), taskId); err != nil {
+	if err := taskExists(svc, utils.ConvertInterfaceToUint(reqBody["user_id"]), taskId); err != nil {
 		log.Println(err)
 		msg := "this user doesn't have this task"
-		c.JSON(utils.Response(http.StatusForbidden, msg))
+		c.JSON(utils.Response(http.StatusNotFound, msg))
 		return
 	}
 
@@ -125,6 +130,7 @@ func (svc TaskApp) postTask(c *gin.Context) {
 	if err != nil {
 		log.Println(err)
 	}
+	userId = uId
 	task.UserID = uId
 	if err := createTask(svc, task); err != nil {
 		log.Println(err)
@@ -241,7 +247,7 @@ func (svc TaskApp) deleteTask(c *gin.Context) {
 	if err != nil {
 		log.Println(err)
 	}
-	if err := checkUserTask(svc, userId, uint(taskId)); err != nil {
+	if err := taskExists(svc, userId, uint(taskId)); err != nil {
 		log.Println(err)
 		msg := "this user doesn't have this task"
 		c.JSON(utils.Response(http.StatusBadRequest, msg))
@@ -292,45 +298,45 @@ func (svc TaskApp) deleteFile(c *gin.Context) {
 
 }
 
-func (svc TaskCache) Write(b []byte) (int, error) {
-	status := svc.Status()
-	if 200 <= status && status <= 299 {
-		svc.cache.Set(svc.requestString, b, cache.DefaultExpiration)
+func cachedExists(c *gin.Context) bool {
+	userID := strconv.Itoa(int(userId))
+	val, ok := cachey.Get(userID)
+	if ok && val != nil {
+		userCache, ok1 := val.(UserCache)
+		if ok1 && userCache.requestStringMap != nil {
+			byteData, ok2 := userCache.requestStringMap[c.Request.RequestURI]
+			if ok2 && byteData != nil {
+				log.Println("cached exists")
+				c.JSON(http.StatusOK, userCache.requestStringMap[c.Request.RequestURI])
+				return true
+			} else {
+				return false
+			}
+		}
 	}
-	return svc.ResponseWriter.Write(b)
+	return false
 }
 
-func CacheCheck(c *gin.Context) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Get the ignoreCache parameter
-		ignoreCache := strings.ToLower(c.Query("ignoreCache")) == "true"
-
-		userId, _ := getId(c)
-		userID := strconv.Itoa(int(userId))
-		// See if we have a cached response
-		response, exists := cachey.Get(c.Request.RequestURI + userID)
-
-		if !ignoreCache && exists {
-			// If so, use it
-			log.Println("cache exists")
-			c.Data(http.StatusOK, "application/json", response.([]byte))
-			c.Abort()
-		} else {
-			// If not, pass our cache writer to the next middleware
-
-			bcw := &TaskCache{cache: cachey, requestString: c.Request.RequestURI + userID, ResponseWriter: c.Writer}
-			c.Writer = bcw
-			c.Next()
+func insertToCache(c *gin.Context, userID string, data interface{}) {
+	cached, exists := cachey.Get(userID)
+	if exists {
+		cachedCon, ok := cached.(UserCache)
+		if ok && cachedCon.requestStringMap != nil {
+			cachedCon.requestStringMap[c.Request.RequestURI] = data
 		}
+	} else {
+		userCache := UserCache{
+			requestStringMap: map[string]interface{}{c.Request.RequestURI: data},
+		}
+		cachey.Set(userID, userCache, cache.DefaultExpiration)
 	}
 }
 
 func (svc TaskApp) getTaskCounts(c *gin.Context) {
-	userId, err := getId(c)
-	if err != nil {
-		log.Println(err)
+	userID := strconv.Itoa(int(userId))
+	if cachedExists(c) {
+		return
 	}
-
 	counts, err := getTasksCount(svc, userId)
 	if err != nil {
 		log.Println(err)
@@ -339,9 +345,15 @@ func (svc TaskApp) getTaskCounts(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, counts)
+	insertToCache(c, userID, counts)
+
 }
 
 func (svc TaskApp) getTaskAverages(c *gin.Context) {
+	userID := strconv.Itoa(int(userId))
+	if cachedExists(c) {
+		return
+	}
 	userId, err := getId(c)
 	if err != nil {
 		log.Println(err)
@@ -355,9 +367,14 @@ func (svc TaskApp) getTaskAverages(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, avgTasks)
+	insertToCache(c, userID, avgTasks)
 }
 
 func (svc TaskApp) getOverDueTask(c *gin.Context) {
+	userID := strconv.Itoa(int(userId))
+	if cachedExists(c) {
+		return
+	}
 	userId, err := getId(c)
 	if err != nil {
 		log.Println(err)
@@ -371,9 +388,14 @@ func (svc TaskApp) getOverDueTask(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, map[string]int64{"Over due Tasks:": countOverDueTasks})
+	insertToCache(c, userID, map[string]int64{"Over due Tasks:": countOverDueTasks})
 }
 
 func (svc TaskApp) getMaxTaskCompletedDay(c *gin.Context) {
+	userID := strconv.Itoa(int(userId))
+	if cachedExists(c) {
+		return
+	}
 	userId, err := getId(c)
 	if err != nil {
 		log.Println(err)
@@ -385,11 +407,16 @@ func (svc TaskApp) getMaxTaskCompletedDay(c *gin.Context) {
 		c.JSON(utils.Response(http.StatusInternalServerError, msg))
 		return
 	}
-
-	c.JSON(http.StatusOK, map[string]string{"Max Tasks Completed Date:": mostCompletedTasksDay})
+	res := map[string]string{"Max Tasks Completed Date:": mostCompletedTasksDay}
+	c.JSON(http.StatusOK, res)
+	insertToCache(c, userID, res)
 }
 
 func (svc TaskApp) getOpenedTasksPerDay(c *gin.Context) {
+	userID := strconv.Itoa(int(userId))
+	if cachedExists(c) {
+		return
+	}
 	userId, err := getId(c)
 	if err != nil {
 		log.Println(err)
@@ -403,9 +430,14 @@ func (svc TaskApp) getOpenedTasksPerDay(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, openedTasksPerDay)
+	insertToCache(c, userID, openedTasksPerDay)
 }
 
 func (svc TaskApp) similarTasks(c *gin.Context) {
+	userID := strconv.Itoa(int(userId))
+	if cachedExists(c) {
+		return
+	}
 	userId, _ := getId(c)
 	tasks, _ := allTasks(svc, userId)
 	similar := findSimilarTasks(tasks)
@@ -415,4 +447,5 @@ func (svc TaskApp) similarTasks(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, similar)
+	insertToCache(c, userID, similar)
 }

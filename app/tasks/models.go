@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/patrickmn/go-cache"
 	"gorm.io/gorm"
 	"log"
@@ -24,11 +23,13 @@ type TaskApp struct {
 }
 
 var cachey *cache.Cache
+var userId uint
 
-type TaskCache struct {
-	gin.ResponseWriter
-	cache         *cache.Cache
-	requestString string
+type UserCache struct {
+	//gin.ResponseWriter
+	//cache            *cache.Cache
+	//requestStrings   []string
+	requestStringMap map[string]interface{}
 }
 
 type TaskCount struct {

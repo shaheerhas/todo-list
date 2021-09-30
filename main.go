@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io"
+	"github.com/shaheerhas/todo-list/app"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -44,6 +44,7 @@ var scheduler *gocron.Scheduler
 
 func scheduleEmail(userApp users.UserModelApp) {
 	scheduler = gocron.NewScheduler(time.Now().Location())
+	//err, _ := scheduler.Every(1).Day().At(time.Now().Add(time.Second * 1)).Do(userApp.SendReminderEmails)
 	err, _ := scheduler.Every(1).Day().At("00:00").Do(userApp.SendReminderEmails)
 	if err != nil {
 		log.Println(err)
@@ -58,6 +59,8 @@ func start() {
 	}
 
 	router := gin.Default()
+
+	router.Use(app.LoggerToFile())
 
 	authApp := auth.AuthApp{Db: db}
 	authApp.InitBlackListModel()
@@ -84,8 +87,8 @@ func start() {
 }
 
 func main() {
-	gin.SetMode(gin.ReleaseMode)
-	myFile, _ := os.Create("requestLogs.log")
-	gin.DefaultWriter = io.MultiWriter(os.Stdout, myFile)
+	//gin.SetMode(gin.ReleaseMode)
+	//myFile, _ := os.Create("requestLogs.log")
+	//gin.DefaultWriter = io.MultiWriter(os.Stdout, myFile)
 	start()
 }

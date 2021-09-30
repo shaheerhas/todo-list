@@ -2,7 +2,6 @@ package utils
 
 import (
 	"encoding/base64"
-	"fmt"
 	"gopkg.in/gomail.v2"
 	"log"
 	"os"
@@ -34,7 +33,6 @@ func SendEmail(userEmail, body, subject string) error {
 	var senderPassword = os.Getenv("SENDER_PASSWORD")
 	msg := gomail.NewMessage()
 	msg.SetHeader("From", senderEmail)
-	fmt.Println(senderEmail)
 	msg.SetHeader("To", userEmail)
 	msg.SetHeader("Subject", subject)
 
@@ -44,6 +42,7 @@ func SendEmail(userEmail, body, subject string) error {
 	if err := d.DialAndSend(msg); err != nil {
 		return err
 	}
+	log.Println("Email sent to", userEmail)
 	return nil
 }
 
