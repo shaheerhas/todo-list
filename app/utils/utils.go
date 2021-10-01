@@ -2,7 +2,11 @@ package utils
 
 import (
 	"encoding/base64"
+	"fmt"
+	"github.com/joho/godotenv"
 	"gopkg.in/gomail.v2"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 	"log"
 	"os"
 	"strconv"
@@ -11,6 +15,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+func init() {
+	err := godotenv.Load(".env")
+	print("init_util")
+	if err != nil {
+		return
+	}
+}
 func Response(statusCode int, msg string) (int, map[string]string) {
 	return statusCode, map[string]string{"msg": msg}
 }
@@ -85,4 +96,16 @@ func ConvertInterfaceToUint(i interface{}) uint {
 		}
 	}
 	return uint(uId)
+}
+
+func SetupDb() (*gorm.DB, error) {
+	var dbName = os.Getenv("DB_NAME")
+	var password = os.Getenv("DB_PASSWORD")
+	var port = os.Getenv("DB_PORT")
+	dsn := fmt.Sprintf("host=localhost user=postgres password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Shanghai", password, dbName, port)
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
 }

@@ -132,6 +132,7 @@ func (svc UserModelApp) fbCallBack(c *gin.Context) {
 
 	resp, err := http.Get("https://graph.facebook.com/me?fields=id,name,email&access_token=" +
 		url.QueryEscape(token.AccessToken))
+
 	if err != nil {
 		log.Println(err)
 		msg := "invalid or malformed payload"

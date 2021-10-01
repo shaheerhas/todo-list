@@ -1,21 +1,17 @@
 package main
 
 import (
-	"fmt"
 	"github.com/shaheerhas/todo-list/app"
+	"github.com/shaheerhas/todo-list/app/utils"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-co-op/gocron"
-	"log"
-	"os"
-
 	"github.com/joho/godotenv"
 	"github.com/shaheerhas/todo-list/app/auth"
 	"github.com/shaheerhas/todo-list/app/tasks"
 	"github.com/shaheerhas/todo-list/app/users"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	"log"
 )
 
 func init() {
@@ -25,19 +21,6 @@ func init() {
 		log.Println(err)
 	}
 
-}
-
-func setupDb() (*gorm.DB, error) {
-	var dbName = os.Getenv("DB_NAME")
-	var password = os.Getenv("DB_PASSWORD")
-	var port = os.Getenv("DB_PORT")
-	dsn := fmt.Sprintf("host=localhost user=postgres password=%s dbname=%s port=%v sslmode=disable TimeZone=Asia/Shanghai", password, dbName, port)
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		return nil, err
-	}
-	return db, nil
 }
 
 var scheduler *gocron.Scheduler
@@ -53,7 +36,7 @@ func scheduleEmail(userApp users.UserModelApp) {
 }
 
 func start() {
-	db, err := setupDb()
+	db, err := utils.SetupDb()
 	if err != nil {
 		panic("couldn't connect to db")
 	}

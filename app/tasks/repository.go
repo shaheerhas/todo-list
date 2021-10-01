@@ -18,13 +18,13 @@ func (t Task) BeforeCreate(tx *gorm.DB) (err error) {
 	return
 }
 
-func createTask(svc TaskApp, task Task) error {
+func createTask(svc TaskApp, task Task) (Task, error) {
 
 	result := svc.Db.Create(&task)
 	if result.Error != nil {
-		return result.Error
+		return task, result.Error
 	}
-	return nil
+	return task, nil
 }
 
 func updateTask(svc TaskApp, updatedTask map[string]interface{}) error {

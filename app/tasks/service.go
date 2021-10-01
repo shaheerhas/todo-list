@@ -132,7 +132,7 @@ func (svc TaskApp) postTask(c *gin.Context) {
 	}
 	userId = uId
 	task.UserID = uId
-	if err := createTask(svc, task); err != nil {
+	if _, err := createTask(svc, task); err != nil {
 		log.Println(err)
 		msg := "couldn't create record in db"
 		c.JSON(utils.Response(http.StatusBadRequest, msg))
@@ -298,7 +298,7 @@ func (svc TaskApp) deleteFile(c *gin.Context) {
 
 }
 
-func cachedExists(c *gin.Context) bool {
+func checkCache(c *gin.Context) bool {
 	userID := strconv.Itoa(int(userId))
 	val, ok := cachey.Get(userID)
 	if ok && val != nil {
@@ -334,7 +334,7 @@ func insertToCache(c *gin.Context, userID string, data interface{}) {
 
 func (svc TaskApp) getTaskCounts(c *gin.Context) {
 	userID := strconv.Itoa(int(userId))
-	if cachedExists(c) {
+	if checkCache(c) {
 		return
 	}
 	counts, err := getTasksCount(svc, userId)
@@ -351,7 +351,7 @@ func (svc TaskApp) getTaskCounts(c *gin.Context) {
 
 func (svc TaskApp) getTaskAverages(c *gin.Context) {
 	userID := strconv.Itoa(int(userId))
-	if cachedExists(c) {
+	if checkCache(c) {
 		return
 	}
 	userId, err := getId(c)
@@ -372,7 +372,7 @@ func (svc TaskApp) getTaskAverages(c *gin.Context) {
 
 func (svc TaskApp) getOverDueTask(c *gin.Context) {
 	userID := strconv.Itoa(int(userId))
-	if cachedExists(c) {
+	if checkCache(c) {
 		return
 	}
 	userId, err := getId(c)
@@ -393,7 +393,7 @@ func (svc TaskApp) getOverDueTask(c *gin.Context) {
 
 func (svc TaskApp) getMaxTaskCompletedDay(c *gin.Context) {
 	userID := strconv.Itoa(int(userId))
-	if cachedExists(c) {
+	if checkCache(c) {
 		return
 	}
 	userId, err := getId(c)
@@ -414,7 +414,7 @@ func (svc TaskApp) getMaxTaskCompletedDay(c *gin.Context) {
 
 func (svc TaskApp) getOpenedTasksPerDay(c *gin.Context) {
 	userID := strconv.Itoa(int(userId))
-	if cachedExists(c) {
+	if checkCache(c) {
 		return
 	}
 	userId, err := getId(c)
@@ -435,7 +435,7 @@ func (svc TaskApp) getOpenedTasksPerDay(c *gin.Context) {
 
 func (svc TaskApp) similarTasks(c *gin.Context) {
 	userID := strconv.Itoa(int(userId))
-	if cachedExists(c) {
+	if checkCache(c) {
 		return
 	}
 	userId, _ := getId(c)
