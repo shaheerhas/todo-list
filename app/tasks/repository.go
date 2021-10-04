@@ -18,7 +18,11 @@ func (t Task) BeforeCreate(tx *gorm.DB) (err error) {
 	return
 }
 
-func createTask(svc TaskApp, task Task) (Task, error) {
+func (t *Task) createTaskWrapper(svc TaskApp, task Task) (Task, error) {
+	return t.TaskRepo.CreateTask(svc, task)
+}
+
+func CreateTask(svc TaskApp, task Task) (Task, error) {
 
 	result := svc.Db.Create(&task)
 	if result.Error != nil {
@@ -27,7 +31,7 @@ func createTask(svc TaskApp, task Task) (Task, error) {
 	return task, nil
 }
 
-func updateTask(svc TaskApp, updatedTask map[string]interface{}) error {
+func UpdateTask(svc TaskApp, updatedTask map[string]interface{}) error {
 	var task Task
 	_, exists := updatedTask["status"]
 	if exists {

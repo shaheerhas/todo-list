@@ -17,6 +17,7 @@ type Task struct {
 	Status         bool `gorm:"not null; default:false"`
 	File           string
 	UserID         uint `gorm:"not null"`
+	TaskRepo
 }
 type TaskApp struct {
 	Db *gorm.DB
@@ -41,6 +42,11 @@ type TaskCount struct {
 type TaskCompleted struct {
 	Avg float64
 	Day time.Time
+}
+
+type TaskRepo interface {
+	CreateTask(svc TaskApp, task Task) (Task, error)
+	UpdateTask(svc TaskApp, updatedTask map[string]interface{}) error
 }
 
 func (svc *TaskApp) InitTaskDb() {

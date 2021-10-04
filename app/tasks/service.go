@@ -108,7 +108,7 @@ func (svc TaskApp) patchTask(c *gin.Context) {
 		return
 	}
 
-	if err := updateTask(svc, reqBody); err != nil {
+	if err := UpdateTask(svc, reqBody); err != nil {
 		log.Println(err)
 		c.JSON(http.StatusInternalServerError, err)
 		return
@@ -132,7 +132,7 @@ func (svc TaskApp) postTask(c *gin.Context) {
 	}
 	userId = uId
 	task.UserID = uId
-	if _, err := createTask(svc, task); err != nil {
+	if _, err := CreateTask(svc, task); err != nil {
 		log.Println(err)
 		msg := "couldn't create record in db"
 		c.JSON(utils.Response(http.StatusBadRequest, msg))

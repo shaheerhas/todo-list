@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/go-co-op/gocron"
 	"github.com/shaheerhas/todo-list/app/auth"
 	"github.com/shaheerhas/todo-list/app/tasks"
 	"github.com/shaheerhas/todo-list/app/utils"
@@ -44,6 +45,18 @@ func initOAuth() {
 			TokenURL: "https://graph.facebook.com/v12.0/oauth/access_token",
 		},
 	}
+}
+
+var scheduler *gocron.Scheduler
+
+func ScheduleEmail(userApp UserModelApp) {
+	scheduler = gocron.NewScheduler(time.Now().Location())
+	//err, _ := scheduler.Every(1).Day().At(time.Now().Add(time.Second * 1)).Do(userApp.SendReminderEmails)
+	err, _ := scheduler.Every(1).Day().At("00:00").Do(userApp.SendReminderEmails)
+	if err != nil {
+		log.Println(err)
+	}
+	scheduler.StartAsync()
 }
 
 func (svc UserModelApp) login(c *gin.Context) {

@@ -16,10 +16,9 @@ import (
 )
 
 func init() {
-	err := godotenv.Load(".env")
-	print("init_util")
+	err := godotenv.Load("/home/shaheer/workspace/golang/todo-list/.env")
 	if err != nil {
-		return
+		log.Println(err)
 	}
 }
 func Response(statusCode int, msg string) (int, map[string]string) {
@@ -75,10 +74,6 @@ func ConvertInterfaceToUint(i interface{}) uint {
 			uId, _ = strconv.Atoi(v)
 		}
 	case float64:
-		{
-			uId = int(v)
-		}
-	case int:
 		{
 			uId = int(v)
 		}
